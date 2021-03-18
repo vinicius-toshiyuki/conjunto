@@ -159,6 +159,8 @@ EMPTY {
 	strcpy(yylval.name, yytext);
 	int ret;
 	switch (yytext[0]) {
+		case 'i': /* in */ /* TODO: Arrumar a precedencia */
+			return '%';
 		case '*':
 		case '/':
 		case '%':
@@ -166,7 +168,6 @@ EMPTY {
 		case '+':
 		case '-':
 			return yytext[0];
-		case 'i': /* in */ /* TODO: Arrumar a precedencia */
 		case '<':
 		case '>':
 			if (strcmp(yytext, "<<") + strcmp(yytext, ">>") == 1) {
@@ -206,7 +207,7 @@ EMPTY {
 }
 
 {OPASSIGN} {
-	printf("<op, %s>", yytext);
+	printf("<opassign, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPASSIGN;
 }

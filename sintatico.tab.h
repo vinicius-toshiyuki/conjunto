@@ -1,4 +1,4 @@
-/* A Bison parser, made by GNU Bison 3.5.1.  */
+/* A Bison parser, made by GNU Bison 3.7.  */
 
 /* Bison interface for Yacc-like parsers in C
 
@@ -31,8 +31,9 @@
    This special exception was added by the Free Software Foundation in
    version 2.2 of Bison.  */
 
-/* Undocumented macros, especially those whose name start with YY_,
-   are private implementation details.  Do not rely on them.  */
+/* DO NOT RELY ON FEATURES THAT ARE NOT DOCUMENTED in the manual,
+   especially those whose name start with YY_ or yy_.  They are
+   private implementation details that can be changed or removed.  */
 
 #ifndef YY_YY_SINTATICO_TAB_H_INCLUDED
 # define YY_YY_SINTATICO_TAB_H_INCLUDED
@@ -44,51 +45,54 @@
 extern int yydebug;
 #endif
 
-/* Token type.  */
+/* Token kinds.  */
 #ifndef YYTOKENTYPE
 # define YYTOKENTYPE
   enum yytokentype
   {
-    ID = 258,
-    TYPE = 259,
-    IF = 260,
-    WHILE = 261,
-    FORALL = 262,
-    FOR = 263,
-    ELSE = 264,
-    RETURN = 265,
-    OPPOS = 266,
-    OPUNI = 267,
-    OPTER = 268,
-    OPBIN1 = 269,
-    OPBIN2 = 270,
-    OPBIN3 = 271,
-    OPBIN4 = 272,
-    OPBIN5 = 273,
-    OPBIN6 = 274,
-    OPBIN7 = 275,
-    OPBIN8 = 276,
-    OPBIN9 = 277,
-    OPBIN10 = 278,
-    OPASSIGN = 279,
-    INT = 280,
-    FLOAT = 281,
-    EMPTY = 282
+    YYEMPTY = -2,
+    YYEOF = 0,                     /* "end of file"  */
+    YYerror = 256,                 /* error  */
+    YYUNDEF = 257,                 /* "invalid token"  */
+    ID = 258,                      /* ID  */
+    TYPE = 259,                    /* TYPE  */
+    IF = 260,                      /* IF  */
+    WHILE = 261,                   /* WHILE  */
+    FORALL = 262,                  /* FORALL  */
+    FOR = 263,                     /* FOR  */
+    ELSE = 264,                    /* ELSE  */
+    RETURN = 265,                  /* RETURN  */
+    OPPOS = 266,                   /* OPPOS  */
+    OPUNI = 267,                   /* OPUNI  */
+    OPTER = 268,                   /* OPTER  */
+    OPBIN3 = 269,                  /* OPBIN3  */
+    OPBIN4 = 270,                  /* OPBIN4  */
+    OPBIN5 = 271,                  /* OPBIN5  */
+    OPBIN6 = 272,                  /* OPBIN6  */
+    OPBIN7 = 273,                  /* OPBIN7  */
+    OPBIN8 = 274,                  /* OPBIN8  */
+    OPBIN9 = 275,                  /* OPBIN9  */
+    OPBIN10 = 276,                 /* OPBIN10  */
+    OPASSIGN = 277,                /* OPASSIGN  */
+    INT = 278,                     /* INT  */
+    FLOAT = 279,                   /* FLOAT  */
+    EMPTY = 280                    /* EMPTY  */
   };
+  typedef enum yytokentype yytoken_kind_t;
 #endif
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 8 "sintatico.y"
+#line 14 "sintatico.y"
 
 	char name[256];
 	int dval;
 	float fval;
 	char empty;
 
-#line 92 "sintatico.tab.h"
+#line 96 "sintatico.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

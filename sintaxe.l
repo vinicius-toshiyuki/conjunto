@@ -2,6 +2,8 @@
 %{
 #include <stdio.h>
 #include <string.h>
+#include <assert.h>
+#include <stdlib.h>
 
 #define YY_USER_ACTION { \
 	if (strcmp(errormsg, "") && yy_act != lastrule && preupdate[yy_act]) { \
@@ -25,10 +27,14 @@
 	preupdate[5] = 0; \
 	preupdate[12] = 0; \
 	preupdate[13] = 0; \
-	preupdate[28] = 0; \
-	preupdate[29] = 0; \
-	preupdate[34] = 0; \
+	preupdate[15] = 0; \
+	preupdate[16] = 0; \
+	preupdate[30] = 0; \
+	preupdate[31] = 0; \
+	preupdate[36] = 0; \
 	preupdate[43] = 0; \
+	preupdate[46] = 0; \
+	preupdate[YY_NUM_RULES - 1] = 0; \
 }
 void updatePosition(int *lnum, int *lcol) {
 	extern char *yytext;
@@ -45,8 +51,18 @@ void handleError(char *msg, int lnum, int lcol) {
 	extern char *yytext;
 	extern int yyleng;
 	fprintf(stderr, "\033[48;2;255;0;0m%s\033[0m\n", msg);
-	fprintf(stderr, "Error while processing line %d:%d\n", lnum + 1, lcol);
+	fprintf(stderr, "\033[48;2;255;0;0mError while processing line %d:%d\033[0m\n", lnum + 1, lcol);
 	msg[0] = '\0';
+}
+int isReserved(char *word) {
+	static const char *reserved[] = {
+		"if", "else", "while", "for", "forall",
+		"int", "float", "set", "elem"
+	};
+	for (int i = 0; i < sizeof(reserved) / sizeof(const char *); i++) {
+		if (!strcmp(reserved[i], word)) return 1;
+	}
+	return 0;
 }
 %}
 
@@ -54,7 +70,7 @@ ID ([a-zA-Z_][a-zA-Z0-9_]*)
 TYPE (int|float|set|elem)
 
 INTEGER (-?[0-9]+)
-FLOAT (-?(([0-9]+"."[0-9]*)|[0-9]*"."[0-9]+)f?|{INTEGER}f)
+FLOAT (-?(([0-9]+"."[0-9]*)|[0-9]*"."[0-9]+)f?)|{INTEGER}f
 CONST ({INTEGER}|{FLOAT}|EMPTY)
 VALUE ({ID}|{CONST})
 
@@ -162,10 +178,20 @@ W [ \t\n]+
 		printf("<return>");
 	}
 
+	{TYPE} {
+		noupdate = yy_act;
+		sprintf(errormsg, "Type can not be used as identifier: %s", yytext);
+		yy_push_state(error);
+		REJECT;
+	}
+
 	{CONST}/\( {
+		noupdate = yy_act;
 		sprintf(errormsg, "Constant is not callable: %s", yytext);
 		yy_push_state(error);
+		REJECT;
 	}
+
 	{INTEGER} {
 		printf("<int, %s>", yytext);
 		BEGIN(expect_op);
@@ -189,6 +215,10 @@ W [ \t\n]+
 		for (i = yyleng - 3; i >= 0; i--) {
 			unput(yytext[i]);
 		}
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
 	}
 
 	{ID}/{W}?\( { /* Chamada de função */
@@ -197,11 +227,19 @@ W [ \t\n]+
 		BEGIN(expect_op);
 		yy_push_state(expect_par);
 		yy_push_state(expect_exp);
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
 	}
 
 	{ID} {
 		printf("<id, \"%s\">", yytext);
 		BEGIN(expect_op);
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
 	}
 
 	\(/{W}?\) {
@@ -230,19 +268,37 @@ W [ \t\n]+
 		yy_push_state(expect_char);
 		printf("<char, '");
 	}
+
+	; {
+		if (yy_top_state() == expect_for) { /* Fim de uma expressão do for */
+			if (yytext[0] == ';') {
+				printf(">, <exp, "); /* <for, <exp, ...>, <exp, */
+				yy_pop_state();
+				yy_pop_state();
+				yy_push_state(expect_exp);
+			} else {
+				sprintf(errormsg, "Unexpected character: %s", yytext);
+				yy_push_state(error);
+			}
+		}
+	}
 }
 
 <expect_op>{
 	\) {
-		noupdate = yy_act;
 		printf(">"); /* <exp, ...> */
 		if (--par_count < 0) {
+			par_count++;
 			sprintf(errormsg, "Unmatched closing parenthesis: %s", yytext);
+			if (yy_top_state() == expect_par || yy_top_state() == expect_exp_par) {
+				yy_pop_state();
+				yy_pop_state();
+			}
 			yy_push_state(error);
-			unput(yytext[0]);
-			YY_BREAK;
+		} else {
+			noupdate = yy_act;
+			REJECT;
 		}
-		REJECT;
 	}
 
 	[);] {
@@ -267,13 +323,14 @@ W [ \t\n]+
 					REJECT;
 				}
 				break;
-			case expect_for: /* Fim de uma expressão do for */
+			case expect_for:
 				if (yytext[0] == ';') {
 					printf(">, <exp, "); /* <for, <exp, ...>, <exp, */
 					yy_pop_state();
 					yy_push_state(expect_exp);
 				} else {
-					yy_push_state(expect_op);
+					sprintf(errormsg, "Unexpected character: %s", yytext);
+					yy_push_state(error);
 				}
 				break;
 			case expect_cmd: /* Fim de um comando */
@@ -291,7 +348,7 @@ W [ \t\n]+
 		}
 	}
 
-	{OPBIN} {
+	{OPBIN}/{W}\(?{VALUE} {
 		printf("<op_bin, \"%s\">", yytext);
 		BEGIN(expect_exp);
 	}
@@ -306,6 +363,10 @@ W [ \t\n]+
 	{ID}/{W}?[,;] {
 		printf("%s", yytext);
 		declaring = 1;
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
 	}
 	,/{W}?{ID} {
 		if (declaring) {
@@ -331,8 +392,12 @@ W [ \t\n]+
 
 <expect_fn_declr>{
 	{ID}/{W}?\( {
-		declaring = 1;
+		declaring = 2;
 		printf("\"%s\", ", yytext);
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
 	}
 	{TYPE}/{W}{ID}{W}?[,)] {
 		declaring = 1;
@@ -340,21 +405,24 @@ W [ \t\n]+
 		printf("<declr, \"%s\", ", yytext);
 	}
 	{ID}/{W}?[,)] {
-		if (declaring) {
-			declaring = 0;
+		if (declaring == 1) {
 			printf("\"%s\">", yytext);
 		} else {
-			sprintf(errormsg, "Expecting function name in definition: %s", yytext);
+			sprintf(errormsg, "Expecting parameter type in definition: %s", yytext);
 			yy_push_state(error);
 		}
+		if (isReserved(yytext)) {
+			sprintf(errormsg, "Can not use reserved keyword as identifier: %s", yytext);
+			yy_push_state(error);
+		}
+		declaring = 0;
 	}
 	\( {
-		if (declaring) {
-			declaring = 0;
-		} else {
+		if (declaring != 2) {
 			sprintf(errormsg, "Expecting function name in definition: %s", yytext);
 			yy_push_state(error);
 		}
+		declaring = 0;
 	}
 	\) {
 		fargs_count = 0;
@@ -378,6 +446,24 @@ W [ \t\n]+
 			fargs_count++;
 			printf(", ");
 		}
+	}
+	[{}] {
+		yy_pop_state();
+		if (YY_START == expect_par) {
+			printf(">>");
+			BEGIN(INITIAL);
+			yy_push_state(expect_block);
+		} else {
+			sprintf(errormsg, "Unexpected closing parenthesis: %s", yytext);
+			yy_push_state(error);
+			noupdate = yy_act;
+			REJECT;
+		}
+		noupdate = yy_act;
+		yy_push_state(error);
+		sprintf(errormsg, "Expecting closing parenthesis in definition: %s", yytext);
+		unput(yytext[0]);
+		fargs_count = 0;
 	}
 }
 
@@ -440,22 +526,25 @@ W [ \t\n]+
 
 	/* Caractere não reconhecido -> Erro */
 <*>. {
-	switch (yytext[0]) {
-		case '(': par_count++;
-			break;
-		case ')': par_count--;
-			break;
-		case '{': brace_count++;
-			break;
-		case '}': brace_count--;
-		default:
-			break;
+	if (YY_START != error) {
+		switch (yytext[0]) {
+			case '(': par_count++;
+				break;
+			case ')': par_count--;
+				break;
+			case '{': brace_count++;
+				break;
+			case '}': brace_count--;
+			default:
+				break;
+		}
 	}
 	if (yy_act != lastrule || YY_START == error) {
 		errlnum = lnum; errlcol = lcol;
 		switch (YY_START) {
 			case error:
 				yy_pop_state();
+				unput(yytext[0]);
 				break;
 			case expect_cmd:
 				sprintf(errormsg, "Expecting a command (if/else/while/for/forall/definition): %s", yytext);
@@ -468,7 +557,7 @@ W [ \t\n]+
 				sprintf(errormsg, "Expecting an identifier or literal: %s", yytext);
 				break;
 			case expect_op:
-				sprintf(errormsg, "Expecting an operator: %s", yytext);
+				sprintf(errormsg, "Expecting an operation: %s", yytext);
 				break;
 			case expect_for:
 				sprintf(errormsg, "Invalid \"for\" argument list: %s", yytext);
@@ -491,11 +580,18 @@ W [ \t\n]+
 	} else {
 		strcat(errormsg, yytext);
 	}
+	YY_BREAK;
 }
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-int main() {
+int main(int argc, char**argv) {
+	if (argc < 2) {
+		fprintf(stderr, "No input file\n");
+		exit(EXIT_FAILURE);
+	}
+	yyin = fopen(argv[1], "r");
+	assert(yyin);
 	int ret = yylex();
 	printf("\n");
 	return ret;

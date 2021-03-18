@@ -1,12 +1,12 @@
 set add_int(set s) {
     return add(2 in add(1 in s));
     // {1,2}
-	for ( i = 3; 3 in s     ; i++ ) {
+	for ( i = ; 3 in s     ; i++ ) {
 		writeln("teset");
 	}
 }
 
-set add_float(set s) {
+set add_float(set ) {
     return add(5.4 in add(1.5 in s));
 }
 
@@ -19,7 +19,7 @@ set add_set(set s) {
 
 int main() {
     set s;
-    s = EMPTY;
+    s =x EMPTY;
 
     add_set(s);
 
@@ -40,12 +40,12 @@ int main() {
     // {1.5,5.4,{1,2}}
 
     int acc; float accf;
-    acc = 0; accf = 0;
+    acc = 0.s; accf = 0;
     elem x;
     
-    forall(x in s) {
+    forall(if(i > 2)) {
         acc = acc + x; // when x is {1,2} the behaviour is undefined; this may raise an exception at runtime
-    accf = accf + x;
+    accf = ifo + x;
     }
 
     // this fixes the above

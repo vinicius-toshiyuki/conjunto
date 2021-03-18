@@ -1,0 +1,1181 @@
+Terminais sem uso na gramática
+
+    OPTER
+
+
+Estado 29 conflitos: 2 de deslocamento/redução
+Estado 51 conflitos: 2 de deslocamento/redução
+Estado 80 conflitos: 2 de deslocamento/redução
+
+
+Gramática
+
+    0 $accept: prog $end
+
+    1 prog: cmds
+
+    2 cmds: %empty
+    3     | cmd cmds
+
+    4 cmd: IF '(' exp ')' cmd
+    5    | WHILE '(' exp ')' cmd
+    6    | FORALL '(' exp ')' cmd
+    7    | FOR '(' forargs ')' cmd
+    8    | ELSE cmd
+    9    | exp ';'
+   10    | RETURN exp ';'
+   11    | '{' cmds '}'
+   12    | TYPE ID idlist ';'
+   13    | TYPE ID '(' parlist ')' ';'
+   14    | TYPE ID '(' parlist ')' '{' cmds '}'
+
+   15 forargs: TYPE ID '=' exp fortail fortail
+   16        | TYPE ID fortail fortail
+   17        | exp fortail fortail
+   18        | fortail fortail
+
+   19 fortail: ';' exp
+   20        | ';'
+
+   21 idlist: %empty
+   22       | ',' ID idlist
+
+   23 parlist: %empty
+   24        | TYPE ID partail
+
+   25 partail: %empty
+   26        | ',' TYPE ID partail
+
+   27 exp: INT
+   28    | FLOAT
+   29    | EMPTY
+   30    | ID
+   31    | exp '?' exp ':' exp
+   32    | exp OPBIN exp
+   33    | OPSPE ID
+   34    | ID OPSPE
+   35    | OPUNI exp
+   36    | ID '(' arglist ')'
+
+   37 arglist: %empty
+   38        | exp argtail
+
+   39 argtail: %empty
+   40        | ',' exp argtail
+
+
+Terminais, com as regras onde eles aparecem
+
+    $end (0) 0
+    '(' (40) 4 5 6 7 13 14 36
+    ')' (41) 4 5 6 7 13 14 36
+    ',' (44) 22 26 40
+    ':' (58) 31
+    ';' (59) 9 10 12 13 19 20
+    '=' (61) 15
+    '?' (63) 31
+    '{' (123) 11 14
+    '}' (125) 11 14
+    error (256)
+    ID <name> (258) 12 13 14 15 16 22 24 26 30 33 34 36
+    TYPE <name> (259) 12 13 14 15 16 24 26
+    IF <name> (260) 4
+    WHILE <name> (261) 5
+    FORALL <name> (262) 6
+    FOR <name> (263) 7
+    ELSE <name> (264) 8
+    RETURN <name> (265) 10
+    OPSPE <name> (266) 33 34
+    OPUNI <name> (267) 35
+    OPBIN <name> (268) 32
+    OPTER <name> (269)
+    INT <dval> (270) 27
+    FLOAT <fval> (271) 28
+    EMPTY <empty> (272) 29
+
+
+Não terminais com as regras onde eles aparecem
+
+    $accept (27)
+        à esquerda: 0
+    prog (28)
+        à esquerda: 1
+        à direita: 0
+    cmds (29)
+        à esquerda: 2 3
+        à direita: 1 3 11 14
+    cmd (30)
+        à esquerda: 4 5 6 7 8 9 10 11 12 13 14
+        à direita: 3 4 5 6 7 8
+    forargs (31)
+        à esquerda: 15 16 17 18
+        à direita: 7
+    fortail (32)
+        à esquerda: 19 20
+        à direita: 15 16 17 18
+    idlist (33)
+        à esquerda: 21 22
+        à direita: 12 22
+    parlist (34)
+        à esquerda: 23 24
+        à direita: 13 14
+    partail (35)
+        à esquerda: 25 26
+        à direita: 24 26
+    exp (36)
+        à esquerda: 27 28 29 30 31 32 33 34 35 36
+        à direita: 4 5 6 9 10 15 17 19 31 32 35 38 40
+    arglist (37)
+        à esquerda: 37 38
+        à direita: 36
+    argtail (38)
+        à esquerda: 39 40
+        à direita: 38 40
+
+
+Estado 0
+
+    0 $accept: • prog $end
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    $padrão  reduzir usando a regra 2 (cmds)
+
+    prog  ir ao estado 15
+    cmds  ir ao estado 16
+    cmd   ir ao estado 17
+    exp   ir ao estado 18
+
+
+Estado 1
+
+   30 exp: ID •
+   34    | ID • OPSPE
+   36    | ID • '(' arglist ')'
+
+    OPSPE  deslocar, e ir ao estado 19
+    '('    deslocar, e ir ao estado 20
+
+    $padrão  reduzir usando a regra 30 (exp)
+
+
+Estado 2
+
+   12 cmd: TYPE • ID idlist ';'
+   13    | TYPE • ID '(' parlist ')' ';'
+   14    | TYPE • ID '(' parlist ')' '{' cmds '}'
+
+    ID  deslocar, e ir ao estado 21
+
+
+Estado 3
+
+    4 cmd: IF • '(' exp ')' cmd
+
+    '('  deslocar, e ir ao estado 22
+
+
+Estado 4
+
+    5 cmd: WHILE • '(' exp ')' cmd
+
+    '('  deslocar, e ir ao estado 23
+
+
+Estado 5
+
+    6 cmd: FORALL • '(' exp ')' cmd
+
+    '('  deslocar, e ir ao estado 24
+
+
+Estado 6
+
+    7 cmd: FOR • '(' forargs ')' cmd
+
+    '('  deslocar, e ir ao estado 25
+
+
+Estado 7
+
+    8 cmd: ELSE • cmd
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    cmd  ir ao estado 26
+    exp  ir ao estado 18
+
+
+Estado 8
+
+   10 cmd: RETURN • exp ';'
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 27
+
+
+Estado 9
+
+   33 exp: OPSPE • ID
+
+    ID  deslocar, e ir ao estado 28
+
+
+Estado 10
+
+   35 exp: OPUNI • exp
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 29
+
+
+Estado 11
+
+   27 exp: INT •
+
+    $padrão  reduzir usando a regra 27 (exp)
+
+
+Estado 12
+
+   28 exp: FLOAT •
+
+    $padrão  reduzir usando a regra 28 (exp)
+
+
+Estado 13
+
+   29 exp: EMPTY •
+
+    $padrão  reduzir usando a regra 29 (exp)
+
+
+Estado 14
+
+   11 cmd: '{' • cmds '}'
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    $padrão  reduzir usando a regra 2 (cmds)
+
+    cmds  ir ao estado 30
+    cmd   ir ao estado 17
+    exp   ir ao estado 18
+
+
+Estado 15
+
+    0 $accept: prog • $end
+
+    $end  deslocar, e ir ao estado 31
+
+
+Estado 16
+
+    1 prog: cmds •
+
+    $padrão  reduzir usando a regra 1 (prog)
+
+
+Estado 17
+
+    3 cmds: cmd • cmds
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    $padrão  reduzir usando a regra 2 (cmds)
+
+    cmds  ir ao estado 32
+    cmd   ir ao estado 17
+    exp   ir ao estado 18
+
+
+Estado 18
+
+    9 cmd: exp • ';'
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ';'    deslocar, e ir ao estado 34
+    '?'    deslocar, e ir ao estado 35
+
+
+Estado 19
+
+   34 exp: ID OPSPE •
+
+    $padrão  reduzir usando a regra 34 (exp)
+
+
+Estado 20
+
+   36 exp: ID '(' • arglist ')'
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    $padrão  reduzir usando a regra 37 (arglist)
+
+    exp      ir ao estado 36
+    arglist  ir ao estado 37
+
+
+Estado 21
+
+   12 cmd: TYPE ID • idlist ';'
+   13    | TYPE ID • '(' parlist ')' ';'
+   14    | TYPE ID • '(' parlist ')' '{' cmds '}'
+
+    '('  deslocar, e ir ao estado 38
+    ','  deslocar, e ir ao estado 39
+
+    $padrão  reduzir usando a regra 21 (idlist)
+
+    idlist  ir ao estado 40
+
+
+Estado 22
+
+    4 cmd: IF '(' • exp ')' cmd
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 41
+
+
+Estado 23
+
+    5 cmd: WHILE '(' • exp ')' cmd
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 42
+
+
+Estado 24
+
+    6 cmd: FORALL '(' • exp ')' cmd
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 43
+
+
+Estado 25
+
+    7 cmd: FOR '(' • forargs ')' cmd
+
+    ID     deslocar, e ir ao estado 1
+    TYPE   deslocar, e ir ao estado 44
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+    ';'    deslocar, e ir ao estado 45
+
+    forargs  ir ao estado 46
+    fortail  ir ao estado 47
+    exp      ir ao estado 48
+
+
+Estado 26
+
+    8 cmd: ELSE cmd •
+
+    $padrão  reduzir usando a regra 8 (cmd)
+
+
+Estado 27
+
+   10 cmd: RETURN exp • ';'
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ';'    deslocar, e ir ao estado 49
+    '?'    deslocar, e ir ao estado 35
+
+
+Estado 28
+
+   33 exp: OPSPE ID •
+
+    $padrão  reduzir usando a regra 33 (exp)
+
+
+Estado 29
+
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+   35    | OPUNI exp •
+
+    OPBIN  deslocar, e ir ao estado 33
+    '?'    deslocar, e ir ao estado 35
+
+    OPBIN    [reduzir usando a regra 35 (exp)]
+    '?'      [reduzir usando a regra 35 (exp)]
+    $padrão  reduzir usando a regra 35 (exp)
+
+
+Estado 30
+
+   11 cmd: '{' cmds • '}'
+
+    '}'  deslocar, e ir ao estado 50
+
+
+Estado 31
+
+    0 $accept: prog $end •
+
+    $padrão  aceitar
+
+
+Estado 32
+
+    3 cmds: cmd cmds •
+
+    $padrão  reduzir usando a regra 3 (cmds)
+
+
+Estado 33
+
+   32 exp: exp OPBIN • exp
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 51
+
+
+Estado 34
+
+    9 cmd: exp ';' •
+
+    $padrão  reduzir usando a regra 9 (cmd)
+
+
+Estado 35
+
+   31 exp: exp '?' • exp ':' exp
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 52
+
+
+Estado 36
+
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+   38 arglist: exp • argtail
+
+    OPBIN  deslocar, e ir ao estado 33
+    ','    deslocar, e ir ao estado 53
+    '?'    deslocar, e ir ao estado 35
+
+    $padrão  reduzir usando a regra 39 (argtail)
+
+    argtail  ir ao estado 54
+
+
+Estado 37
+
+   36 exp: ID '(' arglist • ')'
+
+    ')'  deslocar, e ir ao estado 55
+
+
+Estado 38
+
+   13 cmd: TYPE ID '(' • parlist ')' ';'
+   14    | TYPE ID '(' • parlist ')' '{' cmds '}'
+
+    TYPE  deslocar, e ir ao estado 56
+
+    $padrão  reduzir usando a regra 23 (parlist)
+
+    parlist  ir ao estado 57
+
+
+Estado 39
+
+   22 idlist: ',' • ID idlist
+
+    ID  deslocar, e ir ao estado 58
+
+
+Estado 40
+
+   12 cmd: TYPE ID idlist • ';'
+
+    ';'  deslocar, e ir ao estado 59
+
+
+Estado 41
+
+    4 cmd: IF '(' exp • ')' cmd
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ')'    deslocar, e ir ao estado 60
+    '?'    deslocar, e ir ao estado 35
+
+
+Estado 42
+
+    5 cmd: WHILE '(' exp • ')' cmd
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ')'    deslocar, e ir ao estado 61
+    '?'    deslocar, e ir ao estado 35
+
+
+Estado 43
+
+    6 cmd: FORALL '(' exp • ')' cmd
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ')'    deslocar, e ir ao estado 62
+    '?'    deslocar, e ir ao estado 35
+
+
+Estado 44
+
+   15 forargs: TYPE • ID '=' exp fortail fortail
+   16        | TYPE • ID fortail fortail
+
+    ID  deslocar, e ir ao estado 63
+
+
+Estado 45
+
+   19 fortail: ';' • exp
+   20        | ';' •
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    $padrão  reduzir usando a regra 20 (fortail)
+
+    exp  ir ao estado 64
+
+
+Estado 46
+
+    7 cmd: FOR '(' forargs • ')' cmd
+
+    ')'  deslocar, e ir ao estado 65
+
+
+Estado 47
+
+   18 forargs: fortail • fortail
+
+    ';'  deslocar, e ir ao estado 45
+
+    fortail  ir ao estado 66
+
+
+Estado 48
+
+   17 forargs: exp • fortail fortail
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ';'    deslocar, e ir ao estado 45
+    '?'    deslocar, e ir ao estado 35
+
+    fortail  ir ao estado 67
+
+
+Estado 49
+
+   10 cmd: RETURN exp ';' •
+
+    $padrão  reduzir usando a regra 10 (cmd)
+
+
+Estado 50
+
+   11 cmd: '{' cmds '}' •
+
+    $padrão  reduzir usando a regra 11 (cmd)
+
+
+Estado 51
+
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+   32    | exp OPBIN exp •
+
+    OPBIN  deslocar, e ir ao estado 33
+    '?'    deslocar, e ir ao estado 35
+
+    OPBIN    [reduzir usando a regra 32 (exp)]
+    '?'      [reduzir usando a regra 32 (exp)]
+    $padrão  reduzir usando a regra 32 (exp)
+
+
+Estado 52
+
+   31 exp: exp • '?' exp ':' exp
+   31    | exp '?' exp • ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    '?'    deslocar, e ir ao estado 35
+    ':'    deslocar, e ir ao estado 68
+
+
+Estado 53
+
+   40 argtail: ',' • exp argtail
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 69
+
+
+Estado 54
+
+   38 arglist: exp argtail •
+
+    $padrão  reduzir usando a regra 38 (arglist)
+
+
+Estado 55
+
+   36 exp: ID '(' arglist ')' •
+
+    $padrão  reduzir usando a regra 36 (exp)
+
+
+Estado 56
+
+   24 parlist: TYPE • ID partail
+
+    ID  deslocar, e ir ao estado 70
+
+
+Estado 57
+
+   13 cmd: TYPE ID '(' parlist • ')' ';'
+   14    | TYPE ID '(' parlist • ')' '{' cmds '}'
+
+    ')'  deslocar, e ir ao estado 71
+
+
+Estado 58
+
+   22 idlist: ',' ID • idlist
+
+    ','  deslocar, e ir ao estado 39
+
+    $padrão  reduzir usando a regra 21 (idlist)
+
+    idlist  ir ao estado 72
+
+
+Estado 59
+
+   12 cmd: TYPE ID idlist ';' •
+
+    $padrão  reduzir usando a regra 12 (cmd)
+
+
+Estado 60
+
+    4 cmd: IF '(' exp ')' • cmd
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    cmd  ir ao estado 73
+    exp  ir ao estado 18
+
+
+Estado 61
+
+    5 cmd: WHILE '(' exp ')' • cmd
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    cmd  ir ao estado 74
+    exp  ir ao estado 18
+
+
+Estado 62
+
+    6 cmd: FORALL '(' exp ')' • cmd
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    cmd  ir ao estado 75
+    exp  ir ao estado 18
+
+
+Estado 63
+
+   15 forargs: TYPE ID • '=' exp fortail fortail
+   16        | TYPE ID • fortail fortail
+
+    ';'  deslocar, e ir ao estado 45
+    '='  deslocar, e ir ao estado 76
+
+    fortail  ir ao estado 77
+
+
+Estado 64
+
+   19 fortail: ';' exp •
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    '?'    deslocar, e ir ao estado 35
+
+    $padrão  reduzir usando a regra 19 (fortail)
+
+
+Estado 65
+
+    7 cmd: FOR '(' forargs ')' • cmd
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    cmd  ir ao estado 78
+    exp  ir ao estado 18
+
+
+Estado 66
+
+   18 forargs: fortail fortail •
+
+    $padrão  reduzir usando a regra 18 (forargs)
+
+
+Estado 67
+
+   17 forargs: exp fortail • fortail
+
+    ';'  deslocar, e ir ao estado 45
+
+    fortail  ir ao estado 79
+
+
+Estado 68
+
+   31 exp: exp '?' exp ':' • exp
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 80
+
+
+Estado 69
+
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+   40 argtail: ',' exp • argtail
+
+    OPBIN  deslocar, e ir ao estado 33
+    ','    deslocar, e ir ao estado 53
+    '?'    deslocar, e ir ao estado 35
+
+    $padrão  reduzir usando a regra 39 (argtail)
+
+    argtail  ir ao estado 81
+
+
+Estado 70
+
+   24 parlist: TYPE ID • partail
+
+    ','  deslocar, e ir ao estado 82
+
+    $padrão  reduzir usando a regra 25 (partail)
+
+    partail  ir ao estado 83
+
+
+Estado 71
+
+   13 cmd: TYPE ID '(' parlist ')' • ';'
+   14    | TYPE ID '(' parlist ')' • '{' cmds '}'
+
+    ';'  deslocar, e ir ao estado 84
+    '{'  deslocar, e ir ao estado 85
+
+
+Estado 72
+
+   22 idlist: ',' ID idlist •
+
+    $padrão  reduzir usando a regra 22 (idlist)
+
+
+Estado 73
+
+    4 cmd: IF '(' exp ')' cmd •
+
+    $padrão  reduzir usando a regra 4 (cmd)
+
+
+Estado 74
+
+    5 cmd: WHILE '(' exp ')' cmd •
+
+    $padrão  reduzir usando a regra 5 (cmd)
+
+
+Estado 75
+
+    6 cmd: FORALL '(' exp ')' cmd •
+
+    $padrão  reduzir usando a regra 6 (cmd)
+
+
+Estado 76
+
+   15 forargs: TYPE ID '=' • exp fortail fortail
+
+    ID     deslocar, e ir ao estado 1
+    OPSPE  deslocar, e ir ao estado 9
+    OPUNI  deslocar, e ir ao estado 10
+    INT    deslocar, e ir ao estado 11
+    FLOAT  deslocar, e ir ao estado 12
+    EMPTY  deslocar, e ir ao estado 13
+
+    exp  ir ao estado 86
+
+
+Estado 77
+
+   16 forargs: TYPE ID fortail • fortail
+
+    ';'  deslocar, e ir ao estado 45
+
+    fortail  ir ao estado 87
+
+
+Estado 78
+
+    7 cmd: FOR '(' forargs ')' cmd •
+
+    $padrão  reduzir usando a regra 7 (cmd)
+
+
+Estado 79
+
+   17 forargs: exp fortail fortail •
+
+    $padrão  reduzir usando a regra 17 (forargs)
+
+
+Estado 80
+
+   31 exp: exp • '?' exp ':' exp
+   31    | exp '?' exp ':' exp •
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    '?'    deslocar, e ir ao estado 35
+
+    OPBIN    [reduzir usando a regra 31 (exp)]
+    '?'      [reduzir usando a regra 31 (exp)]
+    $padrão  reduzir usando a regra 31 (exp)
+
+
+Estado 81
+
+   40 argtail: ',' exp argtail •
+
+    $padrão  reduzir usando a regra 40 (argtail)
+
+
+Estado 82
+
+   26 partail: ',' • TYPE ID partail
+
+    TYPE  deslocar, e ir ao estado 88
+
+
+Estado 83
+
+   24 parlist: TYPE ID partail •
+
+    $padrão  reduzir usando a regra 24 (parlist)
+
+
+Estado 84
+
+   13 cmd: TYPE ID '(' parlist ')' ';' •
+
+    $padrão  reduzir usando a regra 13 (cmd)
+
+
+Estado 85
+
+   14 cmd: TYPE ID '(' parlist ')' '{' • cmds '}'
+
+    ID      deslocar, e ir ao estado 1
+    TYPE    deslocar, e ir ao estado 2
+    IF      deslocar, e ir ao estado 3
+    WHILE   deslocar, e ir ao estado 4
+    FORALL  deslocar, e ir ao estado 5
+    FOR     deslocar, e ir ao estado 6
+    ELSE    deslocar, e ir ao estado 7
+    RETURN  deslocar, e ir ao estado 8
+    OPSPE   deslocar, e ir ao estado 9
+    OPUNI   deslocar, e ir ao estado 10
+    INT     deslocar, e ir ao estado 11
+    FLOAT   deslocar, e ir ao estado 12
+    EMPTY   deslocar, e ir ao estado 13
+    '{'     deslocar, e ir ao estado 14
+
+    $padrão  reduzir usando a regra 2 (cmds)
+
+    cmds  ir ao estado 89
+    cmd   ir ao estado 17
+    exp   ir ao estado 18
+
+
+Estado 86
+
+   15 forargs: TYPE ID '=' exp • fortail fortail
+   31 exp: exp • '?' exp ':' exp
+   32    | exp • OPBIN exp
+
+    OPBIN  deslocar, e ir ao estado 33
+    ';'    deslocar, e ir ao estado 45
+    '?'    deslocar, e ir ao estado 35
+
+    fortail  ir ao estado 90
+
+
+Estado 87
+
+   16 forargs: TYPE ID fortail fortail •
+
+    $padrão  reduzir usando a regra 16 (forargs)
+
+
+Estado 88
+
+   26 partail: ',' TYPE • ID partail
+
+    ID  deslocar, e ir ao estado 91
+
+
+Estado 89
+
+   14 cmd: TYPE ID '(' parlist ')' '{' cmds • '}'
+
+    '}'  deslocar, e ir ao estado 92
+
+
+Estado 90
+
+   15 forargs: TYPE ID '=' exp fortail • fortail
+
+    ';'  deslocar, e ir ao estado 45
+
+    fortail  ir ao estado 93
+
+
+Estado 91
+
+   26 partail: ',' TYPE ID • partail
+
+    ','  deslocar, e ir ao estado 82
+
+    $padrão  reduzir usando a regra 25 (partail)
+
+    partail  ir ao estado 94
+
+
+Estado 92
+
+   14 cmd: TYPE ID '(' parlist ')' '{' cmds '}' •
+
+    $padrão  reduzir usando a regra 14 (cmd)
+
+
+Estado 93
+
+   15 forargs: TYPE ID '=' exp fortail fortail •
+
+    $padrão  reduzir usando a regra 15 (forargs)
+
+
+Estado 94
+
+   26 partail: ',' TYPE ID partail •
+
+    $padrão  reduzir usando a regra 26 (partail)

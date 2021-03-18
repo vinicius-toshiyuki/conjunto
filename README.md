@@ -3,7 +3,8 @@ Uma linguagem derivada da linguagem C com suporte a conjuntos.
 
 ## Dependências
 
-*flex*
+- flex
+- gcc
 
 ```
 sudo apt install flex
@@ -13,10 +14,6 @@ sudo apt install flex
 
 ```
 flex sintaxe.l
-gcc lex.yy.c -o lexer -lfl
-cat subset_sum.conj | ./lexer
+gcc lex.yy.c -lfl
+./a.out subset_sum1.conj
 ```
-
-## TODO
-
-[ ] expressão vazia no for

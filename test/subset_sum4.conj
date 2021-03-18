@@ -5,16 +5,16 @@ set copy_set(set s) {
     return ans;
 }
 
-set succ(set n) {
+set succset( n {
     set next;
-    next = copy_set(n);
+    next = copy_setn);
     return add(n in next);
 }
 
-int main() {
-    set zero; set one; set two; set three;
+int main() 
+    set zero, set one; set two; set three;
    
-    zero = EMPTY;
+    zero = EMPTY
     one = succ(zero);
     two = succ(one);
     three = succ(two);

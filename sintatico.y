@@ -12,15 +12,27 @@ int yyerror(char *s);
 	char empty;
 }
 
-%token <name> ID TYPE IF WHILE FORALL FOR ELSE RETURN OPPOS OPUNI OPBIN OPTER
+%token <name> ID TYPE IF WHILE FORALL FOR ELSE RETURN OPPOS OPUNI OPTER
+%token <name> OPBIN1 OPBIN2 OPBIN3 OPBIN4 OPBIN5 OPBIN6 OPBIN7 OPBIN8 OPBIN9 OPBIN10
+%token <name> OPASSIGN
 %token <dval> INT
 %token <fval> FLOAT
 %token <empty> EMPTY
 
 %left OPPOS
-%right OPUNI
-%left OPBIN /* TODO: Separar */
+%right '+' '-' '!' '~' '*' '&' OPUNI /* ++ -- * & */
+%left '+' '/' '%'
+%left '+' '-'
+%left OPBIN3 /* << >> */
+%left OPBIN4 /* > < >= <= */
+%left OPBIN5 /* == != */
+%left OPBIN6 /* & */
+%left OPBIN7 /* ^ */
+%left OPBIN8 /* | */
+%left OPBIN9 /* && */
+%left OPBIN10 /* || */
 %right OPTER '?' ':'
+%right OPASSIGN
 
 %%
 
@@ -58,8 +70,8 @@ fortail:
 idlist:
 	%empty | ',' ID idlist
 ;
-parlist:
-	%empty | TYPE ID partail
+parlist: %empty
+	| TYPE ID partail
 ;
 partail:
 	%empty | ',' TYPE ID partail
@@ -69,12 +81,23 @@ exp:
 	INT |
 	FLOAT |
 	EMPTY |
-	ID |
 	ID OPPOS |
 	OPUNI exp |
-	exp OPBIN exp |
+	exp OPBIN1 exp |
+	exp OPBIN2 exp |
+	exp OPBIN3 exp |
+	exp OPBIN4 exp |
+	exp OPBIN5 exp |
+	exp OPBIN6 exp |
+	exp OPBIN7 exp |
+	exp OPBIN8 exp |
+	exp OPBIN9 exp |
+	exp OPBIN10 exp |
 	exp '?' exp ':' exp |
-	ID '(' arglist ')'
+	ID OPASSIGN exp |
+	ID '(' arglist ')' |
+	ID |
+	'(' exp ')'
 ;
 
 arglist:
@@ -87,11 +110,12 @@ argtail:
 %%
 
 int yyerror(char *s) {
-	fprintf(stderr, "%s\n", s);
+	fprintf(stderr, ">> %s\n", s);
 	return 1;
 }
 
 int main() {
 	yyparse();
+	printf("\n");
 	return 0;
 }

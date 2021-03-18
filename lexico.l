@@ -51,11 +51,12 @@ CONST ({INTEGER}|{FLOAT}|EMPTY)
 VALUE ({ID}|{CONST})
 
 OPARIT ("*"|"/"|"%"|"+"|"-")
-OPJOIN ({OPARIT}=)
 OPCOMP ("<="|">="|"<"|">"|"!="|"==")
-OPBOOL ("&&"|"||"|"&="|"|="|"&"|"|")
-OPUNI ("!"|"-"|"&"|"+"|"~"|"*"|"++"|"--")
-OPBIN ({OPJOIN}|{OPARIT}|{OPCOMP}|{OPBOOL}|"="|"in"|"<<"|">>")
+OPBOOL ("&&"|"||")
+OPBIT ("&"|"^"|"|")
+OPUNI ("+"|"-"|"!"|"~"|"++"|"--"|"*"|"&")
+OPBIN ({OPARIT}|{OPCOMP}|{OPBOOL}|{OPBIT}|"in"|"<<"|">>")
+OPASSIGN (=|{OPARIT}=|{OPBIT}=)
 OPTER ("?"|":")
 OPPOS ("++"|"--")
 
@@ -108,6 +109,7 @@ return {
 
 [\(\){}\[\];,] {
 	printf("<%s>", yytext);
+	return yytext[0];
 }
 
 {TYPE} {
@@ -134,34 +136,85 @@ EMPTY {
 	return EMPTY;
 }
 
-{ID} {
-	printf("<id, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return ID;
-}
-
 {OPPOS} {
-	printf("<opspe, %s>", yytext);
+	printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPPOS;
 }
 
 {OPUNI} {
-	printf("<opuni, %s>", yytext);
+	printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return OPBIN;
+	int ret;
+	if (strlen(yytext) > 1) {
+		ret = OPUNI;
+	} else {
+		ret = yytext[0];
+	}
+	return ret;
 }
 
 {OPBIN} {
-	printf("<opbin, %s>", yytext);
+	printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return OPBIN;
+	int ret;
+	switch (yytext[0]) {
+		case '*':
+		case '/':
+		case '%':
+			return yytext[0];
+		case '+':
+		case '-':
+			return yytext[0];
+		case 'i': /* in */ /* TODO: Arrumar a precedencia */
+		case '<':
+		case '>':
+			if (strcmp(yytext, "<<") + strcmp(yytext, ">>") == 1) {
+				ret = OPBIN3;
+			} else {
+				ret = OPBIN4;
+			}
+			return ret;
+		case '=':
+		case '!':
+			return OPBIN5; /* Se entrar aqui já deu match em == ou != */
+		case '&':
+			if (strlen(yytext) > 1) {
+				ret = OPBIN9;
+			} else {
+				ret = OPBIN6;
+			}
+			return ret;
+		case '^':
+			return OPBIN7;
+		case '|':
+			if (strlen(yytext) > 1) {
+				ret = OPBIN10;
+			} else {
+				ret = OPBIN8;
+			}
+			return ret;
+		default:
+			break;
+	}
 }
 
 {OPTER} {
-	printf("<opter, %s>", yytext);
+	printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPTER;
+}
+
+{OPASSIGN} {
+	printf("<op, %s>", yytext);
+	strcpy(yylval.name, yytext);
+	return OPASSIGN;
+}
+
+{ID} {
+	printf("<id, %s>", yytext);
+	strcpy(yylval.name, yytext);
+	return ID;
 }
 
 \"/.*\" {

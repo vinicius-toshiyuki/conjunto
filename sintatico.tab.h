@@ -74,9 +74,11 @@ extern int yydebug;
     OPBIN9 = 275,                  /* OPBIN9  */
     OPBIN10 = 276,                 /* OPBIN10  */
     OPASSIGN = 277,                /* OPASSIGN  */
-    INT = 278,                     /* INT  */
-    FLOAT = 279,                   /* FLOAT  */
-    EMPTY = 280                    /* EMPTY  */
+    STRING = 278,                  /* STRING  */
+    CHAR = 279,                    /* CHAR  */
+    INT = 280,                     /* INT  */
+    FLOAT = 281,                   /* FLOAT  */
+    EMPTY = 282                    /* EMPTY  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -85,14 +87,14 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 14 "sintatico.y"
+#line 23 "sintatico.y"
 
-	char name[256];
+	char name[32768];
 	int dval;
 	float fval;
 	char empty;
 
-#line 96 "sintatico.tab.h"
+#line 98 "sintatico.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

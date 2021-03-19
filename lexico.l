@@ -77,73 +77,73 @@ W [ \t\n]+
 <*>{W} /* Consome espaços */
 
 if {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return IF;
 }
 else {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return ELSE;
 }
 while {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return WHILE;
 }
 forall {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return FORALL;
 }
 for {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return FOR;
 }
 return {
-	printf("<cmd, %s>", yytext);
+	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return RETURN;
 }
 
 [\(\){}\[\];,] {
-	printf("<%s>", yytext);
+	// printf("<%s>", yytext);
 	return yytext[0];
 }
 
 {TYPE} {
-	printf("<type, %s>", yytext);
+	// printf("<type, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return TYPE;
 }
 
 {INTEGER} {
-	printf("<int, %s>", yytext);
+	// printf("<int, %s>", yytext);
 	yylval.dval = atoi(yytext);
 	return INT;
 }
 
 {FLOAT} {
-	printf("<float, %s>", yytext);
+	// printf("<float, %s>", yytext);
 	yylval.fval = atof(yytext);
 	return FLOAT;
 }
 
 EMPTY {
-	printf("<empty>");
+	// printf("<empty>");
 	yylval.empty = 'e';
 	return EMPTY;
 }
 
 {OPPOS} {
-	printf("<op, %s>", yytext);
+	// printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPPOS;
 }
 
 {OPUNI} {
-	printf("<op, %s>", yytext);
+	// printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	int ret;
 	if (strlen(yytext) > 1) {
@@ -155,7 +155,7 @@ EMPTY {
 }
 
 {OPBIN} {
-	printf("<op, %s>", yytext);
+	// printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	int ret;
 	switch (yytext[0]) {
@@ -201,41 +201,50 @@ EMPTY {
 }
 
 {OPTER} {
-	printf("<op, %s>", yytext);
+	// printf("<op, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPTER;
 }
 
 {OPASSIGN} {
-	printf("<opassign, %s>", yytext);
+	// printf("<opassign, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return OPASSIGN;
 }
 
 {ID} {
-	printf("<id, %s>", yytext);
+	// printf("<id, %s>", yytext);
 	strcpy(yylval.name, yytext);
 	return ID;
 }
 
 \"/.*\" {
 	BEGIN(expect_string);
-	printf("<str, \"");
+	yymore();
+	// printf("<str, \"");
 }
-<expect_string>"\\\""|[^"\\]* printf("%s", yytext);
+<expect_string>"\\\""|[^"\\]* {
+	yymore();
+}
 <expect_string>\" {
-	printf("\">");
 	BEGIN(INITIAL);
+	strcpy(yylval.name, yytext);
+	return STRING;
 }
 
 '/.*' {
 	BEGIN(expect_char);
-	printf("<char, '");
+	yymore();
+	// printf("<char, '");
 }
-<expect_char>"\\'"|[^'\\] printf("%s", yytext);
+<expect_char>"\\'"|[^'\\] {
+	yymore();
+}
 <expect_char>' {
-	printf("'>");
+	// printf("'>");
 	BEGIN(INITIAL);
+	yylval.name[0] = yytext[0];
+	return CHAR;
 }
 
 	/* Caractere não reconhecido -> Erro */

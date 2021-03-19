@@ -3,25 +3,28 @@
 
 #include "list.h"
 
+enum {
+	DEPTHPRE,
+	DEPTHPOS
+};
+
 typedef struct node {
 	struct node *parent;
 	void *value;
 	list_t children;
 } * node_t;
 
-typedef struct tree {
-	node_t root;
-} * tree_t;
-
 node_t create_node(void *value);
-tree_t create_tree();
 
 void add_child(node_t child, node_t node);
-tree_t remove_node(node_t node);
+node_t remove_node(node_t node);
 
 void delete_node(node_t node);
-void delete_tree(tree_t tree);
 
-void print_tree(tree_t tree);
+size_t level(node_t node);
+
+void breadth(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
+void depth_pre(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
+void depth_pos(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
 
 #endif

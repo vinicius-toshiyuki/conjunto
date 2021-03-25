@@ -12,6 +12,7 @@ typedef struct node {
 	struct node *parent;
 	void *value;
 	list_t children;
+	int id;
 } * node_t;
 
 node_t create_node(void *value);
@@ -23,8 +24,24 @@ void delete_node(node_t node);
 
 size_t level(node_t node);
 
-void breadth(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
-void depth_pre(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
-void depth_pos(void (*action)(node_t node, void *data), node_t node, void *data, void (*init)(), void (*end)());
+void breadth(
+		void (*action)(node_t node,	void *data),
+		node_t node,
+		void *data,
+		void (*init)(),
+		void (*end)()
+		);
+void depth_pre(
+		void (*action)(node_t node,	void *data),
+		node_t node,
+		void *data,
+		void (*init)(), void (*end)()
+		);
+void depth_pos(
+		void (*action)(node_t node,	void *data),
+		node_t node,
+		void *data,
+		void (*init)(), void (*end)()
+		);
 
 #endif

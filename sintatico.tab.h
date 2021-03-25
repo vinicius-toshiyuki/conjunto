@@ -44,6 +44,12 @@
 #if YYDEBUG
 extern int yydebug;
 #endif
+/* "%code requires" blocks.  */
+#line 54 "sintatico.y"
+
+#include "tree.h"
+
+#line 53 "sintatico.tab.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -56,28 +62,28 @@ extern int yydebug;
     YYUNDEF = 257,                 /* "invalid token"  */
     ID = 258,                      /* ID  */
     TYPE = 259,                    /* TYPE  */
-    IF = 260,                      /* IF  */
-    WHILE = 261,                   /* WHILE  */
-    FORALL = 262,                  /* FORALL  */
-    FOR = 263,                     /* FOR  */
-    ELSE = 264,                    /* ELSE  */
-    RETURN = 265,                  /* RETURN  */
-    OPPOS = 266,                   /* OPPOS  */
-    OPUNI = 267,                   /* OPUNI  */
-    OPTER = 268,                   /* OPTER  */
-    OPBIN3 = 269,                  /* OPBIN3  */
-    OPBIN4 = 270,                  /* OPBIN4  */
-    OPBIN5 = 271,                  /* OPBIN5  */
-    OPBIN6 = 272,                  /* OPBIN6  */
-    OPBIN7 = 273,                  /* OPBIN7  */
-    OPBIN8 = 274,                  /* OPBIN8  */
-    OPBIN9 = 275,                  /* OPBIN9  */
-    OPBIN10 = 276,                 /* OPBIN10  */
-    OPASSIGN = 277,                /* OPASSIGN  */
-    STRING = 278,                  /* STRING  */
-    CHAR = 279,                    /* CHAR  */
-    INT = 280,                     /* INT  */
-    FLOAT = 281,                   /* FLOAT  */
+    OPPOS = 260,                   /* OPPOS  */
+    OPUNI = 261,                   /* OPUNI  */
+    IN = 262,                      /* IN  */
+    OPBIN3 = 263,                  /* OPBIN3  */
+    OPBIN4 = 264,                  /* OPBIN4  */
+    OPBIN5 = 265,                  /* OPBIN5  */
+    OPBIN6 = 266,                  /* OPBIN6  */
+    OPBIN7 = 267,                  /* OPBIN7  */
+    OPBIN8 = 268,                  /* OPBIN8  */
+    OPBIN9 = 269,                  /* OPBIN9  */
+    OPBIN10 = 270,                 /* OPBIN10  */
+    OPASSIGN = 271,                /* OPASSIGN  */
+    STRING = 272,                  /* STRING  */
+    CHAR = 273,                    /* CHAR  */
+    INT = 274,                     /* INT  */
+    FLOAT = 275,                   /* FLOAT  */
+    IF = 276,                      /* IF  */
+    WHILE = 277,                   /* WHILE  */
+    FORALL = 278,                  /* FORALL  */
+    FOR = 279,                     /* FOR  */
+    ELSE = 280,                    /* ELSE  */
+    RETURN = 281,                  /* RETURN  */
     EMPTY = 282                    /* EMPTY  */
   };
   typedef enum yytokentype yytoken_kind_t;
@@ -87,14 +93,12 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 23 "sintatico.y"
+#line 58 "sintatico.y"
 
 	char name[32768];
-	int dval;
-	float fval;
-	char empty;
+	node_t node;
 
-#line 98 "sintatico.tab.h"
+#line 102 "sintatico.tab.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -105,6 +109,6 @@ typedef union YYSTYPE YYSTYPE;
 
 extern YYSTYPE yylval;
 
-int yyparse (void);
+int yyparse (int *max, int *childrenCount);
 
 #endif /* !YY_YY_SINTATICO_TAB_H_INCLUDED  */

@@ -17,12 +17,13 @@ list_t create_list() {
 	return list;
 }
 
-void insert(int idx, elem_t elem, list_t list) {
+void insert(int idx, void *value, list_t list) {
 	if (idx < 0 || idx > list->size) {
 		fprintf(stderr, "Invalid index in insert()\n");
 		exit(EXIT_FAILURE);
 	}
 
+	elem_t elem = create_elem(value);
 	if (list->size == 0) {
 		list->first = elem;
 		list->last = elem;
@@ -51,7 +52,7 @@ void insert(int idx, elem_t elem, list_t list) {
 	list->size++;
 }
 
-elem_t removeAt(int idx, list_t list) {
+void * removeAt(int idx, list_t list) {
 	if (idx < 0 || idx >= list->size) {
 		fprintf(stderr, "Invalid index in removeAt()\n");
 		exit(EXIT_FAILURE);
@@ -84,17 +85,28 @@ elem_t removeAt(int idx, list_t list) {
 	elem->next = NULL;
 	elem->prev = NULL;
 	list->size--;
-	return elem;
+	void *ret = elem->value;
+	free(elem);
+	return ret;
+}
+
+int indexOf(void *value, list_t list) {
+	elem_t it = list->first;
+	int ret = -1, i = 0;
+	while (it != NULL) {
+		if (value == it->value) {
+			ret = i;
+			break;
+		}
+		it = it->next;
+		i++;
+	}
+	return ret;
 }
 
 void delete_list(list_t list) {
-	elem_t it = list->first;
 	while (list->size > 0) {
-		delete_elem(removeAt(0, list));
+		removeAt(0, list);
 	}
 	free(list);
-}
-
-void delete_elem(elem_t elem) {
-	free(elem);
 }

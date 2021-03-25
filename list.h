@@ -18,10 +18,10 @@ typedef struct list {
 elem_t create_elem(void *value);
 list_t create_list();
 
-void insert(int idx, elem_t elem, list_t list);
-elem_t removeAt(int idx, list_t);
+void insert(int idx, void *value, list_t list);
+void * removeAt(int idx, list_t);
+int indexOf(void *value, list_t list);
 
 void delete_list(list_t list);
-void delete_elem(elem_t elem);
 
 #endif

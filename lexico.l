@@ -1,10 +1,11 @@
-%option stack
+%option nounput noinput
 %{
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
 #include "sintatico.tab.h"
+#include "tree.h"
 
 #define YY_USER_ACTION { \
 	if (strcmp(errormsg, "") && yy_act != lastrule) { \
@@ -15,13 +16,15 @@
 		errlnum = -1; errlcol = -1; \
 	} \
 }
-#define YY_BREAK { \
+#define YY_PREBREAK { \
 	if (noupdate != yy_act) { \
 		lastrule = yy_act; \
 		updatePosition(&lnum, &lcol); \
 	} \
-	break; \
 }
+#define YY_BREAK YY_PREBREAK break;
+#define RETURNUPDATE YY_PREBREAK return
+// break;
 void updatePosition(int *lnum, int *lcol) {
 	extern char *yytext;
 	extern int yyleng;
@@ -29,15 +32,14 @@ void updatePosition(int *lnum, int *lcol) {
 		if (yytext[i] == '\n') {
 			(*lnum)++;
 			*lcol = 0;
-		}
-		(*lcol)++;
+		} else (*lcol)++;
 	}
 }
 void handleError(char *msg, int lnum, int lcol) {
 	extern char *yytext;
 	extern int yyleng;
 	fprintf(stderr, "\033[48;2;255;0;0m%s\033[0m\n", msg);
-	fprintf(stderr, "\033[48;2;255;0;0mError while processing line %d:%d\033[0m\n", lnum + 1, lcol);
+	fprintf(stderr, "\033[48;2;255;0;0mError while processing line %d:%d\033[0m\n", lnum, lcol);
 	msg[0] = '\0';
 }
 %}
@@ -67,7 +69,7 @@ W [ \t\n]+
 
 	char errormsg[512] = "";
 	int noupdate = -1;
-	int lnum = 0, lcol = 0, lastrule = -1, errlnum = -1, errlcol = -1;
+	int lnum = 1, lcol = 0, lastrule = -1, errlnum = -1, errlcol = -1;
 
 %%
 
@@ -77,174 +79,168 @@ W [ \t\n]+
 <*>{W} /* Consome espaços */
 
 if {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return IF;
+	RETURNUPDATE IF;
 }
 else {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return ELSE;
+	RETURNUPDATE ELSE;
 }
 while {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return WHILE;
+	RETURNUPDATE WHILE;
 }
 forall {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return FORALL;
+	RETURNUPDATE FORALL;
 }
 for {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return FOR;
+	RETURNUPDATE FOR;
 }
 return {
-	// printf("<cmd, %s>", yytext);
 	strcpy(yylval.name, yytext);
-	return RETURN;
+	RETURNUPDATE RETURN;
 }
 
 [\(\){}\[\];,] {
-	// printf("<%s>", yytext);
-	return yytext[0];
+	RETURNUPDATE yytext[0];
 }
 
 {TYPE} {
-	// printf("<type, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return TYPE;
+	char *type = strdup(yytext);
+	yylval.node = create_node(strdup("<type>"));
+	add_child(create_node(type), yylval.node);
+	RETURNUPDATE TYPE;
 }
 
 {INTEGER} {
-	// printf("<int, %s>", yytext);
-	yylval.dval = atoi(yytext);
-	return INT;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE INT;
 }
 
 {FLOAT} {
-	// printf("<float, %s>", yytext);
-	yylval.fval = atof(yytext);
-	return FLOAT;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE FLOAT;
 }
 
 EMPTY {
-	// printf("<empty>");
-	yylval.empty = 'e';
-	return EMPTY;
+	strcpy(yylval.name, yytext);
+	RETURNUPDATE EMPTY;
 }
 
 {OPPOS} {
-	// printf("<op, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return OPPOS;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE OPPOS;
 }
 
 {OPUNI} {
-	// printf("<op, %s>", yytext);
-	strcpy(yylval.name, yytext);
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
 	int ret;
 	if (strlen(yytext) > 1) {
+
 		ret = OPUNI;
 	} else {
 		ret = yytext[0];
 	}
-	return ret;
+	RETURNUPDATE ret;
 }
 
 {OPBIN} {
-	// printf("<op, %s>", yytext);
-	strcpy(yylval.name, yytext);
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
 	int ret;
 	switch (yytext[0]) {
 		case 'i': /* in */ /* TODO: Arrumar a precedencia */
-			return '%';
+			RETURNUPDATE IN;
 		case '*':
 		case '/':
 		case '%':
-			return yytext[0];
+			RETURNUPDATE yytext[0];
 		case '+':
 		case '-':
-			return yytext[0];
+			RETURNUPDATE yytext[0];
 		case '<':
 		case '>':
-			if (strcmp(yytext, "<<") + strcmp(yytext, ">>") == 1) {
-				ret = OPBIN3;
-			} else {
+			if (strcmp(yytext, "<<") > 0 && strcmp(yytext, ">>") > 1) {
 				ret = OPBIN4;
+			} else {
+				ret = OPBIN3;
 			}
-			return ret;
+			RETURNUPDATE ret;
 		case '=':
 		case '!':
-			return OPBIN5; /* Se entrar aqui já deu match em == ou != */
+			RETURNUPDATE OPBIN5; /* Se entrar aqui já deu match em == ou != */
 		case '&':
 			if (strlen(yytext) > 1) {
 				ret = OPBIN9;
 			} else {
 				ret = OPBIN6;
 			}
-			return ret;
+			RETURNUPDATE ret;
 		case '^':
-			return OPBIN7;
+			RETURNUPDATE OPBIN7;
 		case '|':
 			if (strlen(yytext) > 1) {
 				ret = OPBIN10;
 			} else {
 				ret = OPBIN8;
 			}
-			return ret;
+			RETURNUPDATE ret;
 		default:
 			break;
 	}
 }
 
 {OPTER} {
-	// printf("<op, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return OPTER;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE yytext[0];
 }
 
 {OPASSIGN} {
-	// printf("<opassign, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return OPASSIGN;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE OPASSIGN;
 }
 
 {ID} {
-	// printf("<id, %s>", yytext);
-	strcpy(yylval.name, yytext);
-	return ID;
+	char *id = strdup(yytext);
+	yylval.node = create_node(strdup("<id>"));
+	add_child(create_node(id), yylval.node);
+	RETURNUPDATE ID;
 }
 
 \"/.*\" {
 	BEGIN(expect_string);
 	yymore();
-	// printf("<str, \"");
 }
 <expect_string>"\\\""|[^"\\]* {
 	yymore();
 }
 <expect_string>\" {
 	BEGIN(INITIAL);
-	strcpy(yylval.name, yytext);
-	return STRING;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE STRING;
 }
 
 '/.*' {
 	BEGIN(expect_char);
 	yymore();
-	// printf("<char, '");
 }
 <expect_char>"\\'"|[^'\\] {
 	yymore();
 }
 <expect_char>' {
-	// printf("'>");
 	BEGIN(INITIAL);
-	yylval.name[0] = yytext[0];
-	return CHAR;
+	char *val = strdup(yytext);
+	yylval.node = create_node(val);
+	RETURNUPDATE CHAR;
 }
 
 	/* Caractere não reconhecido -> Erro */

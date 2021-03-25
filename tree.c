@@ -2,31 +2,40 @@
 #include <assert.h>
 #include <stdio.h>
 
+size_t ids = 0;
 node_t create_node(void *value) {
 	node_t node = (node_t) malloc(sizeof(struct node));
 	assert(node);
 	node->parent = NULL;
 	node->value = value;
 	node->children = create_list();
+	node->id = ids++;
+	printf("Criando (%s) (%d)\n", (char *) value, node->id);
 	return node;
 }
 
 void add_child(node_t child, node_t node) {
 	child->parent = node;
-	insert(node->children->size, create_elem(child), node->children);
+	insert(node->children->size, child, node->children);
 }
 
 node_t remove_node(node_t node) {
 	elem_t it = node->parent->children->first;
 	int i = 0;
 	while (it->value != node) it = it->next, i++;
-	node_t ret = removeAt(i, node->parent->children)->value;
+	removeAt(i, node->parent->children);
 	node->parent = NULL;
-	return ret;
+	return node;
+}
+
+void __delete_node(node_t node, void *data) {
+	delete_list(node->children);
+	printf("Deletando o %d\n", node->id);
+	free(node);
 }
 
 void delete_node(node_t node) {
-	/* TODO */
+	depth_pos(__delete_node, node, NULL, NULL, NULL);
 }
 
 size_t level(node_t node) {
@@ -43,16 +52,16 @@ void breadth(void (*action)(node_t node, void *data), node_t node, void *data, v
 		init();
 	}
 	list_t queue = create_list();
-	insert(0, create_elem(node), queue); // Queue first node
+	insert(0, node, queue); // Queue first node
 	while (queue->size > 0) { // While has node in queue
 		node_t cur = (node_t) queue->first->value;
 		action(cur, data);
 		elem_t it = cur->children->first;
 		while (it != NULL) {
-			insert(queue->size, create_elem(it->value), queue); // Queue leaf nodes
+			insert(queue->size, it->value, queue); // Queue leaf nodes
 			it = it->next;
 		}
-		delete_elem(removeAt(0, queue));
+		removeAt(0, queue);
 	}
 	if (end != NULL) {
 		end();
@@ -65,6 +74,7 @@ void depth(void (*action)(node_t node, void *data), int mode, node_t node, void 
 			action(node, data);
 		}
 		elem_t it = node->children->first;
+			it = node->children->first;
 		while (it != NULL) {
 			depth(action, mode, it->value, data);
 			it = it->next;

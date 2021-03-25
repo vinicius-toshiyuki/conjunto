@@ -53,6 +53,7 @@ int main() {
     forall(x in s) {
         if (!is_set(x)) {
            acc = acc + x;
+		   1 + 2 * 3;
        accf = accf + x;
     }   
     }

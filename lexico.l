@@ -24,7 +24,7 @@
 }
 #define YY_BREAK YY_PREBREAK break;
 #define RETURNUPDATE YY_PREBREAK return
-// break;
+
 void updatePosition(int *lnum, int *lcol) {
 	extern char *yytext;
 	extern int yyleng;
@@ -44,11 +44,30 @@ void handleError(char *msg, int lnum, int lcol) {
 }
 %}
 
-ID ([a-zA-Z_][a-zA-Z0-9_]*)
+ID ([_[:alpha:]][_[:alnum:]]*)
 TYPE (int|float|set|elem)
 
-INTEGER (-?[0-9]+)
-FLOAT (-?(([0-9]+"."[0-9]*)|[0-9]*"."[0-9]+)f?)|{INTEGER}f
+DECIMAL (([[:digit:]]{-}[0])[[:digit:]]*)
+HEXA (0[xX][[:xdigit:]]+)
+OCTAL (0[0-7]*)
+
+dseq      ([[:digit:]]+)
+dseq_opt  ([[:digit:]]*)
+frac      (({dseq_opt}"."{dseq})|{dseq}".")
+exp       ([eE][+-]?{dseq})
+exp_opt   ({exp}?)
+fsuff     [flFL]
+fsuff_opt ({fsuff}?)
+hpref     (0[xX])
+hdseq     ([[:xdigit:]]+)
+hdseq_opt ([[:xdigit:]]*)
+hfrac     (({hdseq_opt}"."{hdseq})|({hdseq}"."))
+bexp      ([pP][+-]?{dseq})
+dfc       (({frac}{exp_opt}{fsuff_opt})|({dseq}{exp}{fsuff_opt}))
+hfc       (({hpref}{hfrac}{bexp}{fsuff_opt})|({hpref}{hdseq}{bexp}{fsuff_opt}))
+
+FLOAT ({dfc}|{hfc})
+
 CONST ({INTEGER}|{FLOAT}|EMPTY)
 VALUE ({ID}|{CONST})
 
@@ -73,39 +92,21 @@ W [ \t\n]+
 
 %%
 
-		/* Consome espaços */
-<*>"/*"[*]*[^*]*[*]*"/" /* Consome comentários */
-<*>\/{2}[^\n]*$ /* Consome comentários */
-<*>{W} /* Consome espaços */
+	/* Consome espaços */
+<*>"/*"([^*]|"*"[^/])*"*/" /*  Consome comentários */
+<*>"//"[^\n]*              /*  Consome comentários */
+<*>{W}                     /*  Consome espaços     */
 
-if {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE IF;
-}
-else {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE ELSE;
-}
-while {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE WHILE;
-}
-forall {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE FORALL;
-}
-for {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE FOR;
-}
-return {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE RETURN;
-}
+[\(\){};,] RETURNUPDATE yytext[0];
 
-[\(\){}\[\];,] {
-	RETURNUPDATE yytext[0];
-}
+if     RETURNUPDATE IF;
+else   RETURNUPDATE ELSE;
+while  RETURNUPDATE WHILE;
+forall RETURNUPDATE FORALL;
+for    RETURNUPDATE FOR;
+return RETURNUPDATE RETURN;
+
+EMPTY RETURNUPDATE EMPTY;
 
 {TYPE} {
 	char *type = strdup(yytext);
@@ -114,7 +115,9 @@ return {
 	RETURNUPDATE TYPE;
 }
 
-{INTEGER} {
+{DECIMAL} |
+{HEXA}    |
+{OCTAL}   {
 	char *val = strdup(yytext);
 	yylval.node = create_node(val);
 	RETURNUPDATE INT;
@@ -124,11 +127,6 @@ return {
 	char *val = strdup(yytext);
 	yylval.node = create_node(val);
 	RETURNUPDATE FLOAT;
-}
-
-EMPTY {
-	strcpy(yylval.name, yytext);
-	RETURNUPDATE EMPTY;
 }
 
 {OPPOS} {
@@ -142,7 +140,6 @@ EMPTY {
 	yylval.node = create_node(val);
 	int ret;
 	if (strlen(yytext) > 1) {
-
 		ret = OPUNI;
 	} else {
 		ret = yytext[0];
@@ -162,33 +159,31 @@ EMPTY {
 		case '%':
 			RETURNUPDATE yytext[0];
 		case '+':
-		case '-':
-			RETURNUPDATE yytext[0];
-		case '<':
+		case '-': RETURNUPDATE yytext[0]; case '<':
 		case '>':
 			if (strcmp(yytext, "<<") > 0 && strcmp(yytext, ">>") > 1) {
-				ret = OPBIN4;
+				ret = OPBIN2;
 			} else {
-				ret = OPBIN3;
+				ret = OPBIN1;
 			}
 			RETURNUPDATE ret;
 		case '=':
 		case '!':
-			RETURNUPDATE OPBIN5; /* Se entrar aqui já deu match em == ou != */
+			RETURNUPDATE OPBIN3; /* Se entrar aqui já deu match em == ou != */
 		case '&':
 			if (strlen(yytext) > 1) {
-				ret = OPBIN9;
+				ret = OPBIN7;
 			} else {
-				ret = OPBIN6;
+				ret = OPBIN4;
 			}
 			RETURNUPDATE ret;
 		case '^':
-			RETURNUPDATE OPBIN7;
+			RETURNUPDATE OPBIN5;
 		case '|':
 			if (strlen(yytext) > 1) {
-				ret = OPBIN10;
-			} else {
 				ret = OPBIN8;
+			} else {
+				ret = OPBIN6;
 			}
 			RETURNUPDATE ret;
 		default:
@@ -215,13 +210,8 @@ EMPTY {
 	RETURNUPDATE ID;
 }
 
-\"/.*\" {
-	BEGIN(expect_string);
-	yymore();
-}
-<expect_string>"\\\""|[^"\\]* {
-	yymore();
-}
+\"/.*\" { BEGIN(expect_string); yymore(); }
+<expect_string>"\\\""|[^"\\]* { yymore(); }
 <expect_string>\" {
 	BEGIN(INITIAL);
 	char *val = strdup(yytext);
@@ -229,13 +219,21 @@ EMPTY {
 	RETURNUPDATE STRING;
 }
 
-'/.*' {
-	BEGIN(expect_char);
-	yymore();
-}
-<expect_char>"\\'"|[^'\\] {
-	yymore();
-}
+' { BEGIN(expect_char); yymore(); }
+<expect_char>"\\'"                 |
+<expect_char>"\\\\"                |
+<expect_char>"\\0"                 |
+<expect_char>"\\a"                 |
+<expect_char>"\\b"                 |
+<expect_char>"\\t"                 |
+<expect_char>"\\n"                 |
+<expect_char>"\\v"                 |
+<expect_char>"\\f"                 |
+<expect_char>"\\r"                 |
+<expect_char>"\\e"                 |
+<expect_char>"\\"[xX][[:xdigit:]]+ |
+<expect_char>"\\"{OCTAL}           |
+<expect_char>[^'\\]                { yymore(); }
 <expect_char>' {
 	BEGIN(INITIAL);
 	char *val = strdup(yytext);
@@ -244,20 +242,6 @@ EMPTY {
 }
 
 	/* Caractere não reconhecido -> Erro */
-. {
-	sprintf(errormsg, "Unexpected character: %s", yytext);
-}
+. sprintf(errormsg, "Unexpected character: %s", yytext);
 
 %%
-
-// int main(int argc, char**argv) {
-// 	if (argc < 2) {
-// 		fprintf(stderr, "No input file\n");
-// 		exit(EXIT_FAILURE);
-// 	}
-// 	yyin = fopen(argv[1], "r");
-// 	assert(yyin);
-// 	int ret = yylex();
-// 	printf("\n");
-// 	return ret;
-// }

@@ -15,24 +15,29 @@
 \begin{abstract}
 	\hfuzz=3pt
 	Este documento apresenta a construção de um analisador léxico para um subconjunto da linguagem C feito com a ferramenta \texttt{flex}.
-\keywords{Analisador sintático \and Flex \and C \and Tradutores}
+\keywords{Analisador léxico \and Analisador sintático \and Flex \and Bison \and C \and Tradutores}
 \end{abstract}
 
 \section{Motivação}
-\label{sec:motivacao}
-
-Este projeto foi desenvolvido com o objetivo de construir uma linguagem derivada da linguagem \textbf{C} para trabalhar com conjutos. Assim, os tipos primitivos \texttt{set} e \texttt{elem} foram adicionados à linguagem.
+\label{sec:motivacao} Este projeto foi desenvolvido com o objetivo de construir uma linguagem derivada da linguagem \textbf{C} para trabalhar com conjuntos. Assim, os tipos primitivos \texttt{set} e \texttt{elem} foram adicionados à linguagem. Dada a natureza de C, que só inclui tipos de dados básicos, a adição dessas novas primitivas é útil para trabalhar com conjuntos de forma unificada, pois fornece um conjunto de operações e uma implementação padrão, que reduz o trabalho de um usuário ter que desenvolver suas próprias estruturas e operações para conjuntos, facilitando a integração com diferentes projetos e desenvolvedores e diminuindo a quantidade de erros gerados.
 
 \section{Análise Léxica}
 \label{sec:analise_lexica}
-A análise léxica é a primeira etapa para a construção de um tradutor para a linguagem proposta. Com a análise léxica, um programa escrito na linguagem proposta é convertido em uma sequência de \textit{tokens} que podem ser usados nas próximas etapas da construção do traduto, as análises sintática e semântica. Esta análise foi feita usando a ferramenta \texttt{flex}, que define um conjunto de ``regras'' que casam expressões regulares com o programa de entrada e executa comandos específicos para cada regra.
+A análise léxica é a primeira etapa para a construção de um tradutor para a linguagem proposta. Com a análise léxica, um programa escrito na linguagem proposta é convertido em uma sequência de \textit{tokens} que podem ser usados nas próximas etapas da construção do tradutor, as análises sintática e semântica. Esta análise foi feita usando a ferramenta \texttt{flex}, que define um conjunto de ``regras'' que identificam um token na entrada dada, então uma porção de código é executada e um valor identificador do tipo do token é retornado para o analisador semântico, que chama o sintático gerado pelo \texttt{flex}.
 
-O \texttt{flex} foir utilizado para gerar \textit{tokens} de maneira apropriada para cada regra e tentar identificar erros no código na etapa de análise léxica.
+O \texttt{flex} foi utilizado para gerar \textit{tokens} de maneira apropriada para cada regra e tentar identificar erros léxicos, como um identificador ou uma \textit{string} inválida.
+
+\section{Análise Sintática}
+\label{sec:analise_sintatica}
+A análise sintática é a segunda etapa para a construção do tradutor, apesar de que a análise léxica é chamada a partir desta etapa. Com esta análise, uma sequência de tokens é checada contra uma gramática, devendo respeitar seus construtos, e possíveis erros devem ser apontados caso contrário. Nesta etapa são construídas a árvore sintática abstrata do programa recebido de entrada e a árvore de contextos, que serve para definir escopos e também como tabela de símbolos. A forma dessas árvores é apresentada na Subseção \ref{subsection:arvores}. Similar à etapa anterior, nesta etapa é usada a ferramenta \tettt{bison} para definir as regras da gramática as quais as sequências de tokens devem seguir. Enquanto um construto da gramática é identificado, ação são executadas, como, por exemplo, a adição de cada construto às árvores mencionadas.
+
+\subsection{Árvores sintática e de contextos}
+\label{subsection:arvores}
 
 \section{Testes}
 \label{sec:testes}
 
-Junto aos arquivos deste projeto, que podem ser obtidos seguindo os passos da seção \ref{sec:reproducao} estão quatro arquivos nomeados \texttt{subset\_sum\textbf{X}.conj}, em que {\bf\tt X} $= 1,2,3,4$ que server como arquivos de entrada teste para o analisador léxico gerado. Os arquivos com final $1,2$ são arquivos corretos, já os arquivos com final $3,4$ representam arquivos com erros.
+Junto aos arquivos deste projeto, que podem ser obtidos seguindo os passos da Seção \ref{sec:reproducao} estão quatro arquivos nomeados \texttt{subset\_sum\textbf{X}.conj}, em que {\bf\tt X} $= 1,2,3,4$ que servem como arquivos de entrada teste para o analisador léxico gerado. Os arquivos com final $1,2$ são arquivos corretos, já os arquivos com final $3,4$ representam arquivos com erros.
 
 \section{Reprodução}
 \label{sec:reproducao}
@@ -42,8 +47,10 @@ Junto aos arquivos deste projeto, que podem ser obtidos seguindo os passos da se
 Este projeto tem as seguintes dependências:
 
 \begin{itemize}
-	\item \texttt{\bf gcc} versão 10.2.0
 	\item \texttt{\bf flex} versão 2.6.4
+	\item \texttt{\bf bison} versão 3.7
+	\item \texttt{\bf gcc} versão 10.2.0
+	\item \texttt{\bf make} versão 4.3
 \end{itemize}
 
 \subsection{Execução}
@@ -79,7 +86,7 @@ Os padrões a seguir são utilizados nos outros grupos de padrões e cada um tem
 
 \begin{enumerate}
 	\item \pat{-^?[[0-9]]^+}
-		
+
 		Um número inteiro. É denominado pelo grupo \pat{\tok{INT}}.
 	\item
 		\pat{-^?[[0-9]]^+.[[0-9]]^{\star}f^?} ou
@@ -95,10 +102,10 @@ Os padrões a seguir são utilizados nos outros grupos de padrões e cada um tem
 		Um identificador. É denominado pelo grupo \pat{\tok{ID}}.
 	\item \pat{int} ou \pat{float} ou \pat{set} ou \pat{elem}
 
-		Um tipo de dados. É denomidado pelo grupo \pat{\tok{TYPE}}.
+		Um tipo de dados. É denominado pelo grupo \pat{\tok{TYPE}}.
 	\item \pat{*} ou \pat{/} ou \pat{\%} ou \pat{+} ou \pat{-}
 
-		Um operador aritimético. É denomidado pelo grupo \pat{\tok{OPARIT}}.
+		Um operador aritmético. É denominado pelo grupo \pat{\tok{OPARIT}}.
 	\item \pat{<} ou \pat{>} ou \pat{<=} ou \pat{>=} ou \pat{==} ou \pat{!=}
 
 		Um operador relacional. É denominado pelo grupo \pat{\tok{OPREL}}.
@@ -166,15 +173,15 @@ Os padrões a seguir fazem parte do grupo \pat{\tok{CMD}}.
 		Um comando \texttt{forall}. Um comando \texttt{forall} é seguido de uma expressão em parênteses e de um comando. Na etapa de análise léxica não há checagem se a expressão é uma expressão ``\texttt{in}''.
 	\item \pat{for(\tok{EXP}^?;\tok{EXP}^?;\tok{EXP}^?)\tok{CMD}}
 
-		Um comando \texttt{for}. Um comando \texttt{for} é seguido de três expressões opcionais separadas por ponto-e-vírgula em parênteses e de um comando.
+		Um comando \texttt{for}. Um comando \texttt{for} é seguido de três expressões opcionais separadas por ponto e vírgula em parênteses e de um comando.
 	\item \pat{\tok{TYPE}\tok{ID}[,\tok{ID}]^{\star};}
 
-		Uma comando de declaração de variável. Uma declaração é composta de um tipo seguido de um identificador seguido de uma lista de ``vírgula e identificador'' opcional e de um ponto-e-vírgula.
+		Uma comando de declaração de variável. Uma declaração é composta de um tipo seguido de um identificador seguido de uma lista de ``vírgula e identificador'' opcional e de um ponto e vírgula.
 	\item \pat{\tok{TYPE}\tok{ID}([\tok{TYPE}\tok{ID}[,\tok{TYPE}\tok{ID}]^{\star}]^?)\{\tok{CMD}\}}
 
 		Uma comando de declaração de função. Uma declaração é composta de um tipo seguido de um identificador seguido de uma lista opcional de parâmetros no formato ``tipo e identificador'' em parênteses e de um comando bloco.
 	\item \pat{return\tok{EXP}}
 
-		Um comando de retorno. É composto da palavra reservada \texttt{return} seguido de uma expressão e um ponto-e-vírgula.
+		Um comando de retorno. É composto da palavra reservada \texttt{return} seguido de uma expressão e um ponto e vírgula.
 \end{enumerate}
 \end{document}

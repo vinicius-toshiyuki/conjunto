@@ -10,7 +10,6 @@ node_t create_node(void *value) {
 	node->value = value;
 	node->children = create_list();
 	node->id = ids++;
-	printf("Criando (%s) (%d)\n", (char *) value, node->id);
 	return node;
 }
 
@@ -20,6 +19,10 @@ void add_child(node_t child, node_t node) {
 }
 
 node_t remove_node(node_t node) {
+	if (node->parent == NULL) {
+		fprintf(stderr, "Parent is nil: remove_node()\n");
+		exit(EXIT_FAILURE);
+	}
 	elem_t it = node->parent->children->first;
 	int i = 0;
 	while (it->value != node) it = it->next, i++;
@@ -30,7 +33,6 @@ node_t remove_node(node_t node) {
 
 void __delete_node(node_t node, void *data) {
 	delete_list(node->children);
-	printf("Deletando o %d\n", node->id);
 	free(node);
 }
 

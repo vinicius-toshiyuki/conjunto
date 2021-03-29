@@ -1,55 +1,178 @@
 %define lr.type canonical-lr
+
+/* Parâmetros para a função yyparse() */
 %parse-param {int *max} {int *childrenCount}
-%{
+
+%{ /* ================== INÍCIO DO PREFÁCIO ===================== */
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
 #include <stdarg.h>
-#include <locale.h>
-#include <wchar.h>
-#include "lex.yy.h"
 #include <assert.h>
+#include "lex.yy.h"
 #include "tree.h"
 
 #define NAMESIZE 32768
-#define YYDEBUG 1
+#define FILENAMESIZE 512
 
-#define __TREE_WIDE_CHARS__
-#ifdef __TREE_WIDE_CHARS__
+/* ======== Definição de carcteres para impressão da árvore ===== */
+#define __UNICODE_CHARS_SUPPPORT__
+#ifdef __UNICODE_CHARS_SUPPPORT__
+
 #define TREECHILDFIRST "┬"
 #define TREECHILDMID "├"
 #define TREECHILDLAST "└"
 #define TREECHILD "│"
 #define TREELEAF "○"
 #define TREEBRANCH "─"
+
+#define ERR_SEPARATOR "══════════"
+
 #else
+
 #define TREECHILDFIRST "."
 #define TREECHILDMID "+"
 #define TREECHILDLAST "+"
 #define TREECHILD "|"
 #define TREELEAF ">"
 #define TREEBRANCH "-"
+
+#define ERR_SEPARATOR "=========="
 #endif
+/* ============================================================== */
 
-#define ERR_COLOR "145;40;40"
-#define ERR_TOKEN "\033[48;2;" ERR_COLOR "m<error>\033[0m"
-#define ERR_TEMPLATE "\033[48;2;" ERR_COLOR "m  > %s\033[0m\n\033[48;2;" ERR_COLOR "m====\033[0m\n"
-#define ERR_LOCATION "\033[48;2;" ERR_COLOR "m%s:%d:%d\033[0m\n"
+/* ================== Definição de cores ======================== */
+#define CLEARCOLOR "\033[0m"
+#define __TRUE_COLOR_SUPPORT__
+#ifdef __TRUE_COLOR_SUPPORT__
 
-int yylex();
+#define TREEROOTCOLOR "\033[38;2;170;170;170m"
+#define TREELEAFCOLOR "\033[1m"
+
+#define ERR_COLOR "\033[48;2;145;40;40m"
+#define ERR_TOKEN ERR_COLOR "<error>" CLEARCOLOR
+#define ERR_TEMPLATE \
+	ERR_COLOR "  > %s" CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR CLEARCOLOR "\n"
+#define ERR_LOCATION ERR_COLOR "%s:%d:%d" CLEARCOLOR "\n"
+
+#else
+
+#define TREEROOTCOLOR "\033[90m"
+#define TREELEAFCOLOR "\033[1m"
+
+#define ERR_COLOR "\033[31;7m"
+#define ERR_TOKEN ERR_COLOR "<error>" CLEARCOLOR
+#define ERR_TEMPLATE \
+	ERR_COLOR "  > %s" CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR CLEARCOLOR "\n"
+#define ERR_LOCATION ERR_COLOR "%s:%d:%d" CLEARCOLOR "\n"
+#endif
+/* ============================================================== */
+
+/* ========================= Macros ============================= */
+#define ADD_BIN_EXP(RES, EXP1, OP, EXP2) {      \
+	node_t exp = create_node(strdup("<exp>"));  \
+	node_t op = create_node(strdup("<opbin>")); \
+	add_child(OP, op);                          \
+	add_child(EXP1, exp);                       \
+	add_child(op, exp);                         \
+	add_child(EXP2, exp);                       \
+	RES = exp;                                  \
+}
+
+#define ADD_BIN_EXP_ERR(RES, EXP1, OP) {             \
+	node_t exp = create_node(strdup("<exp>"));       \
+	node_t op = create_node(strdup("<opbin>"));      \
+	add_child(OP, op);                               \
+	add_child(EXP1, exp);                            \
+	add_child(op, exp);                              \
+	node_t err = create_node(ERR_TOKEN);             \
+	add_child(err, exp);                             \
+	RES = exp;                                       \
+	ssprintf(                                        \
+		syn_errormsg,                                \
+		"Expected expression while processing '%s'", \
+		OP->value                                    \
+		);                                           \
+}
+
+#define ADD_UNI_EXP(RES, OP, EXP1) {            \
+	node_t exp = create_node(strdup("<exp>"));  \
+	node_t op = create_node(strdup("<opuni>")); \
+	add_child(OP, op);                          \
+	add_child(op, exp);                         \
+	add_child(EXP1, exp);                       \
+	RES = exp;                                  \
+}
+
+#define FIRSTCHILD_VALUE(NODE) \
+	((char *) ((node_t) NODE->children->first->value)->value)
+
+#define PUSH_CONTEXT { \
+	node_t OLD_CONTEXT = current_context; \
+	current_context = create_node(create_list()); \
+	add_child(current_context, OLD_CONTEXT); \
+}
+
+#define POP_CONTEXT \
+	current_context = current_context->parent;
+
+enum {
+	FUN,
+	VAR
+};
+#define ADD_CONTEXT(ENTRY_CONTEXT, ID_CONTEXT, TYPE_CONTEXT) {  \
+	char TEMPLATE[] = "<%s '%s' (%s)>";                         \
+	char *ENTRY, *TYPE;                                          \
+	char FUNCTION[] = "function", VARIABLE[] = "variable";      \
+	switch (ENTRY_CONTEXT) {                                    \
+		case FUN: TYPE = FUNCTION; break;                       \
+		case VAR: TYPE = VARIABLE; break;                       \
+		default:                                                \
+			fprintf(stderr, "Invalid entry type in context\n"); \
+			exit(EXIT_FAILURE);                                 \
+	}                                                           \
+	ENTRY = (char *) malloc(                                    \
+		strlen(TEMPLATE) +                                      \
+		strlen(TYPE) +                                          \
+		strlen(ID_CONTEXT) +                                    \
+		strlen(TYPE_CONTEXT) + 1                                \
+		);                                                      \
+	sprintf(ENTRY, TEMPLATE, TYPE, ID_CONTEXT, TYPE_CONTEXT);   \
+	insert(0, ENTRY, current_context->value);                   \
+}
+
+/* ============================================================== */
+
+/* Estrutura para passar argumentos para impressão */
+typedef struct {
+	int *childrenCount;
+	void (*val_print)(node_t value);
+} printData_t;
+
+/* Assinatura dependente do %parse-param */
 int yyerror(int *max, int *childrenCount, char *s);
-void ssprintf(char *target, char *template, ...);
-void print(node_t node, void *data);
-void max_level(node_t node, void *data);
-void free_values(node_t node, void *data);
+int yylex();
 
-char filename[512];
-char syn_errormsg[NAMESIZE];
-extern int lnum, lcol;
-node_t root;
-node_t parent = NULL;
-list_t parents;
+void ssprintf(char *target, char *template, ...); /* É a mesma coisa do sprintf() */
+void print(node_t node, void *data);              /* Imprime um nó de uma árvore */
+void print_syntatic(node_t value);                /* Imprime o valor de um nó da árvore sintática */
+void print_context(node_t value);                 /* Imprime o valor de um nó do contexto */
+void max_level(node_t node, void *data);          /* Obtém a profundidade de uma árvore */
+void free_values(node_t node, void *data);        /* Libera a memória do valor de um nó */
+void free_context(node_t node, void *data);       /* Libera a memória de um context */
+
+extern int lnum, lcol; /* Vêm do lexico.l */
+
+char filename[FILENAMESIZE + 1]; /* Armazena o nome do arquivo de entrada */
+char syn_errormsg[NAMESIZE + 1]; /* Armazena a próxima mensagem de erro */
+
+node_t root;    /* Raiz da árvore sintática */
+list_t parents; /* Auxilia na inserção na árvore */
+
+node_t current_context;
+node_t context; /* Árvore de contextos */
 %}
+/* ======================= FIM DO PREFÁCIO ====================== */
 
 %code requires {
 #include "tree.h"
@@ -60,70 +183,58 @@ list_t parents;
 	node_t node;
 }
 
-%type <node> exp
-%type <node> arglist
-%type <node> argtail
-%type <node> parlist
-%type <node> partail
-%type <node> cmd
-%type <node> forargs
-%type <node> fortail
-%token <node> ID TYPE
-%token <node> OPPOS OPUNI
-%token <node> IN OPBIN3 OPBIN4 OPBIN5 OPBIN6 OPBIN7 OPBIN8 OPBIN9 OPBIN10
-%token <node> OPASSIGN
-%token <node> STRING
-%token <node> CHAR
-%token <node> INT
-%token <node> FLOAT
+%destructor {
+	depth_pre(free_values, $$, NULL, NULL, NULL);
+	delete_node($$);
+} <node>
 
-%token <name> IF WHILE FORALL FOR ELSE RETURN
-%token <name> EMPTY
+/* ============== Definições de tokens e tipos ========== /**/
+%type <node> cmd                                          /**/
+%type <node> exp                                          /**/
+%token <node> STRING CHAR INT FLOAT                       /**/
+%token <node> ID TYPE                                     /**/
+%token <node> IN OPPOS OPUNI OPBIN1 OPBIN2 OPBIN3 OPBIN4  /**/
+%token <node> OPBIN5 OPBIN6 OPBIN7 OPBIN8 OPASSIGN        /**/
+%token <node> '*' '/' '+' '-' '%' '!' '~' '&'             /**/
+                                                          /**/
+%token <name> IF WHILE FORALL FOR ELSE RETURN             /**/
+%token <name> EMPTY                                       /**/
+                                                          /**/
+%type arglist argtail parlist partail forargs fortail     /**/
+/* ====================================================== /**/
 
-%right OPASSIGN
-%right '?' ':'
-%left OPBIN10 /* || */
-%left OPBIN9 /* && */
-%left OPBIN8 /* | */
-%left OPBIN7 /* ^ */
-%left OPBIN6 /* & */
-%left OPBIN5 /* == != */
-%left OPBIN4 /* > < >= <= */
-%left OPBIN3 /* << >> */
-%left '+' '-'
-%left '*' '/' '%'
-%left IN
-%right '!' '~' '&' OPUNI /* ++ -- * & */
-%left OPPOS
-
-%precedence IF
-%precedence ELSE
+/* ========= Definição de precedencia ======= /**/
+%right OPASSIGN                               /**/
+%right '?' ':'                                /**/
+%left OPBIN8 /* ||        */                  /**/
+%left OPBIN7 /* &&        */                  /**/
+%left OPBIN6 /* |         */                  /**/
+%left OPBIN5 /* ^         */                  /**/
+%left OPBIN4 /* &         */                  /**/
+%left OPBIN3 /* == !=     */                  /**/
+%left OPBIN2 /* > < >= <= */                  /**/
+%left OPBIN1 /* << >>     */                  /**/
+%left '+' '-'                                 /**/
+%left '*' '/' '%'                             /**/
+%left IN                                      /**/
+%right '!' '~' '&' OPUNI /* + - ++ -- * & */  /**/
+%left OPPOS                                   /**/
+                                              /**/
+%precedence IF                                /**/
+%precedence ELSE                              /**/
+/* ========================================== /**/
 
 %%
 
-prog: {
-		insert(0, root, parents);
-	} cmds {
-		removeAt(0, parents);
-		// fprintf(stderr, "len parents: %lu\n", parents->size);
-		// fprintf(stderr, "len root: %lu\n", root->children->size);
-		depth_pre(max_level, root, max, NULL, NULL); // Pega a profundidade da árvore
-		childrenCount = (int *) calloc(*max, sizeof(int));
-		sprintf(root->value, "\033[4m%s\033[0m", (char *) root->value);
-		depth_pre(print, root, childrenCount, NULL, NULL);
-		free(childrenCount);
-		depth_pos(free_values, root, NULL, NULL, NULL);
-		delete_node(root);
-	}
-;
+prog: cmds;
 
-cmds: %empty {}
+cmds: %empty
 	| cmd {
 		add_child($1, parents->first->value);
 	} cmdstail
 ;
 
-cmdstail: %empty {}
+cmdstail: %empty
 	| cmd {
 		add_child($1, parents->first->value);
 	} cmdstail
@@ -152,7 +263,6 @@ cmd: IF '(' exp ')' cmd %prec IF {
 	}
 	| FOR {
 		$<node>$ = create_node(strdup("<for>"));
-		// fprintf(stderr, "Inserindo no for: %lu\n", parents->size);
 		insert(0, $<node>$, parents);
 	} '(' forargs ')' {
 		removeAt(0, parents);
@@ -160,17 +270,15 @@ cmd: IF '(' exp ')' cmd %prec IF {
 		$$ = $<node>2;
 		add_child($7, $$);
 	}
-	| exp ';' {
-		$$ = $1;
-	}
+	| exp ';' { $$ = $1; }
 	| RETURN exp ';' {
-		$$ = create_node(strdup("<return>"));
-		add_child($2, $$);
+		add_child($2, ($$ = create_node(strdup("<return>"))));
 	}
 	| {
-		// fprintf(stderr, "Inserindo no {}: %lu\n", parents->size);
 		insert(0, create_node(strdup("<block>")), parents);
+		PUSH_CONTEXT;
 	} '{' cmds '}' {
+		POP_CONTEXT;
 		$$ = parents->first->value;
 		removeAt(0, parents);
 	}
@@ -181,95 +289,72 @@ cmd: IF '(' exp ')' cmd %prec IF {
 		$<node>$ = create_node(strdup("<declr>"));
 		add_child($1, $<node>$);
 		add_child($2, $<node>$);
-		// fprintf(stderr, "Inserindo no declr: %lu\n", parents->size);
+		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
 		insert(0, $<node>$, parents);
 	} idlist ';' {
 		$$ = $<node>3;
 		removeAt(0, parents);
 	}
-//	| TYPE ID {
-//		$<node>$ = create_node(strdup("<declr_fn_header>"));
-//		add_child($1, $<node>$);
-//		add_child($2, $<node>$);
-//
-//		node_t pars = create_node(strdup("<parlist>"));
-//		add_child(pars, $<node>$);
-//		insert(0, pars, parents);
-//	} '(' parlist ')' ';' {
-//		$$ = $<node>3;
-//		removeAt(0, parents);
-//		// ssprintf($$, "<declr_fn_header, %s, %s%s>", $1, $2, $4);
-//	}
 	| TYPE ID '(' {
 		$<node>$ = create_node(strdup("<declr_fn>"));
 		add_child($1, $<node>$);
 		add_child($2, $<node>$);
+		ADD_CONTEXT(FUN, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+		PUSH_CONTEXT;
 
 		node_t pars = create_node(strdup("<parlist>"));
 		add_child(pars, $<node>$);
-		// fprintf(stderr, "Inserindo no declr_fn (%s): %lu\n", (char *) ((node_t) $2->children->first->value)->value, parents->size);
 		insert(0, pars, parents); /* É removido dentro de declr_fntail */
 	} declr_fntail {
+		POP_CONTEXT;
 		$$ = $<node>4;
 	}
 	/* Erros */
 	| IF '(' error ')' cmd %prec IF {
 		$$ = create_node(strdup("<if>"));
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, $$);
+		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
 		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
 	}
 	| IF '(' error ')' cmd ELSE cmd %prec ELSE {
 		$$ = create_node(strdup("<if-else>"));
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, $$);
+		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
 		add_child($7, $$);
 		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
 	}
-	| WHILE '(' error ')' {
-		$<node>$ = create_node(strdup("<while>"));
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, $<node>$);
-		// add_child($5, $$);
+	| WHILE '(' error ')' cmd {
+		$$ = create_node(strdup("<while>"));
+		add_child(create_node(ERR_TOKEN), $$);
+		add_child($5, $$);
 		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
-	} cmd {
-		$$ = $<node>5;
 	}
-	| FORALL '(' error ')' {
-		$<node>$ = create_node(strdup("<forall>"));
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, $<node>$);
-		// add_child($5, $$);
+	| FORALL '(' error ')' cmd {
+		$$ = create_node(strdup("<forall>"));
+		add_child(create_node(ERR_TOKEN), $$);
+		add_child($5, $$);
 		ssprintf(syn_errormsg, "Expected in-expression in '%s' statment", $1);
-	} cmd {
-		$$ = $<node>5;
-		add_child($6, $$);
 	}
 	| RETURN error ';' {
 		$$ = create_node(strdup("<return>"));
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>2, err);
-		add_child(err, $$);
+		add_child(create_node(ERR_TOKEN), $$);
 		ssprintf(syn_errormsg, "Expected return expression");
 	}
 	| TYPE idlist {
 		$<node>$ = create_node(strdup("<declr>"));
 		add_child($1, $<node>$);
 		add_child(create_node(ERR_TOKEN), $<node>$);
-		// fprintf(stderr, "Inserindo no declr_error: %lu\n", parents->size);
 		insert(0, $<node>$, parents);
 	} ';' {
 		removeAt(0, parents);
 		YYERROR;
 	} error {
 		$$ = $<node>3;
-		ssprintf(syn_errormsg, "Expected identifier of type '%s' lookahead: %c", ((node_t) $1->children->first->value)->value, yychar);
+		ssprintf(
+			syn_errormsg,
+			"Expected identifier of type '%s'",
+			FIRSTCHILD_VALUE($1)
+		);
 	}
 	| TYPE {
 		$<node>$ = create_node(strdup("<declr_fn>"));
@@ -278,16 +363,16 @@ cmd: IF '(' exp ')' cmd %prec IF {
 
 		node_t pars = create_node(strdup("<parlist>"));
 		add_child(pars, $<node>$);
-		// fprintf(stderr, "Inserindo no declr_fn error: %lu\n", parents->size);
 		insert(0, pars, parents);
+		PUSH_CONTEXT;
 	} '(' parlist ')' {
 		removeAt(0, parents);
 		$<node>$ = $<node>2;
 		node_t block = create_node(strdup("<block>"));
 		add_child(block, $<node>$);
-		// fprintf(stderr, "Inserindo no declr_fn {} error: %lu\n", parents->size);
 		insert(0, block, parents);
 	} '{' cmds '}' {
+		POP_CONTEXT;
 		removeAt(0, parents);
 		YYERROR;
 	} error {
@@ -299,7 +384,6 @@ cmd: IF '(' exp ')' cmd %prec IF {
 declr_fntail: parlist ')' '{' {
 		node_t block = create_node(strdup("<block>"));
 		add_child(block, ((node_t) parents->first->value)->parent);
-		// fprintf(stderr, "Inserindo no declr_fn {}: %lu\n", parents->size);
 		removeAt(0, parents); /* Inserido no que vem antes */
 		insert(0, block, parents);
 	} cmds '}' {
@@ -309,14 +393,12 @@ declr_fntail: parlist ')' '{' {
 	| error '{' {
 		node_t block = create_node(strdup("<block>"));
 		add_child(block, ((node_t) parents->first->value)->parent);
-		// fprintf(stderr, "Inserindo no declr_fn error 1 {}: %lu\n", parents->size);
-		node_t err = create_node(ERR_TOKEN);
-		add_child(err, parents->first->value);
-		add_child($<node>1, err);
+
+		add_child(create_node(ERR_TOKEN), parents->first->value);
+
 		removeAt(0, parents); /* Inserido no que vem antes */
 		insert(0, block, parents);
 		ssprintf(syn_errormsg, "Expected a ')'");
-		// printf("----------(%s) (%d)\n", $<node>1->value, $<node>1->id);
 	} cmds '}' {
 		removeAt(0, parents);
 	}
@@ -325,8 +407,7 @@ declr_fntail: parlist ')' '{' {
 		node_t block = create_node(strdup("<block>"));
 		add_child(err, block);
 		add_child(block, ((node_t) parents->first->value)->parent);
-		// add_child($<node>3, block);
-		// fprintf(stderr, "Inserindo no declr_fn error 2 {}: %lu\n", parents->size);
+
 		removeAt(0, parents); /* Inserido no que vem antes */
 		insert(0, err, parents);
 		ssprintf(syn_errormsg, "Expected a '{'");
@@ -335,45 +416,48 @@ declr_fntail: parlist ')' '{' {
 	}
 ;
 
-parlist: %empty {}
-	| TYPE ID partail {
-		add_child($1, parents->first->value);
-		add_child($2, parents->first->value);
-	}
+parlist: %empty
+	| TYPE ID {
+		$<node>$ = create_node(strdup("<declr>"));
+		add_child($1, $<node>$);
+		add_child($2, $<node>$);
+		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+		add_child($<node>$, parents->first->value);
+	} partail
 	/* Erros */
 	| ID { /* Missing type */
 		add_child(create_node(ERR_TOKEN), parents->first->value);
 		add_child($1, parents->first->value);
 		YYERROR;
 	} partail error {
-		ssprintf(syn_errormsg, "Expected a type for '%s'", (char *) ((node_t) $1->children->first->value)->value);
+		ssprintf(syn_errormsg, "Expected a type for '%s'", FIRSTCHILD_VALUE($1));
 	}
 	| TYPE { /* Missing id */
 		add_child($1, parents->first->value);
 		add_child(create_node(ERR_TOKEN), parents->first->value);
 		YYERROR;
 	} partail error {
-		ssprintf(syn_errormsg, "Expected an identifier of type '%s'", (char *) ((node_t) $1->children->first->value)->value);
+		ssprintf(syn_errormsg, "Expected an identifier of type '%s'", FIRSTCHILD_VALUE($1));
 	}
 ;
 
-partail: %empty {}
+partail: %empty
 	| ',' TYPE ID partail {
-		add_child($2, parents->first->value);
-		add_child($3, parents->first->value);
+		$<node>$ = create_node(strdup("<declr>"));
+		add_child($2, $<node>$);
+		add_child($3, $<node>$);
+		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($3), FIRSTCHILD_VALUE($2));
+		add_child($<node>$, parents->first->value);
 	}
 	/* Erros */
 	| TYPE ID partail {
-		add_child($1, parents->first->value);
-		add_child($2, parents->first->value);
+		$<node>$ = create_node(strdup("<declr>"));
+		add_child($1, $<node>$);
+		add_child($2, $<node>$);
+		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+		add_child($<node>$, parents->first->value);
 		ssprintf(syn_errormsg, "Expected a ','");
 	}
-	// | ',' TYPE error ')' {
-	// 	add_child($2, parents->first->value);
-	// 	add_child(create_node(ERR_TOKEN), parents->first->value);
-	// 	// ssprintf($$, "<err_par, %s>", $2);
-	// 	ssprintf(syn_errormsg, "Expected identifier of type '%s'", $2->value);
-	// }
 ;
 
 forargs: TYPE ID '=' exp {
@@ -383,9 +467,8 @@ forargs: TYPE ID '=' exp {
 		add_child($4, arg);
 
 		add_child(arg, parents->first->value);
-		// fprintf(stderr, "Inserindo no for arg 1: %lu\n", parents->size);
 		insert(0, arg, parents);
-	} fordeclrlist { /* TODO: Tem que poder fazer várias declarações no for */
+	} fordeclrlist { /* TODO: Tem que poder fazer várias declarações sem iniciar */
 		removeAt(0, parents);
 	} fortail fortail
 	| TYPE ID {
@@ -394,7 +477,6 @@ forargs: TYPE ID '=' exp {
 		add_child($2, arg);
 
 		add_child(arg, parents->first->value);
-		// fprintf(stderr, "Inserindo no for arg 1: %lu\n", parents->size);
 		insert(0, arg, parents);
 	} idlist {
 		removeAt(0, parents);
@@ -429,36 +511,17 @@ idlist: %empty
 		add_child($2, parents->first->value);
 	} idlist
 	| ',' error {
-		node_t err = create_node(ERR_TOKEN);
-		add_child(err, parents->first->value);
-		add_child($<node>2, err);
+		add_child(create_node(ERR_TOKEN), parents->first->value);
 		ssprintf(syn_errormsg, "Expected an indentifier");
 	} idlist
 ;
 
-exp: INT {
-		node_t aux = create_node(strdup("<int>"));
-		add_child($1, aux);
-		$$ = aux;
-	}
-	| FLOAT {
-		node_t aux = create_node(strdup("<float>"));
-		add_child($1, aux);
-		$$ = aux;
-	}
-	| EMPTY {
-		$$ = create_node(strdup("<empty>"));
-	}
-	| STRING {
-		node_t aux = create_node(strdup("<string>"));
-		add_child($1, aux);
-		$$ = aux;
-	}
-	| CHAR {
-		node_t aux = create_node(strdup("<char>"));
-		add_child($1, aux);
-		$$ = aux;
-	}
+exp: INT     { add_child($1, ($$ = create_node(strdup("<int>"))));    }
+	| FLOAT  { add_child($1, ($$ = create_node(strdup("<float>"))));  }
+	| EMPTY  { $$ = create_node(strdup("<empty>"));                   }
+	| STRING { add_child($1, ($$ = create_node(strdup("<string>")))); }
+	| CHAR   { add_child($1, ($$ = create_node(strdup("<char>"))));   }
+	| ID     { $$ = $1; }
 	| ID OPPOS {
 		node_t exp = create_node(strdup("<exp>"));
 		node_t op = create_node(strdup("<oppos>"));
@@ -467,179 +530,26 @@ exp: INT {
 		add_child(op, exp);
 		$$ = exp;
 	}
-	| '*' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| '+' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| '-' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| '!' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| '~' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| '&' exp %prec OPUNI {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| OPUNI exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opuni>"));
-		add_child($<node>1, op);
-		add_child(op, exp);
-		add_child($2, exp);
-		$$ = exp;
-	}
-	| exp '*' exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp '/' exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp '%' exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp '+' exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp '-' exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp IN exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN3 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN4 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN5 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN6 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN7 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN8 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
-	| exp OPBIN9 exp {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		add_child($3, exp);
-		$$ = exp;
-	}
+	| '*' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| '+' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| '-' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| '!' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| '~' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| '&' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
+	| OPUNI exp           { ADD_UNI_EXP($$, $1, $2);     }
+	| exp '*' exp         { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp '/' exp         { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp '%' exp         { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp '+' exp         { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp '-' exp         { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp IN exp          { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN1 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN2 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN3 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN4 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN5 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN6 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
+	| exp OPBIN7 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
 	| exp '?' exp ':' exp {
 		node_t exp = create_node(strdup("<exp>"));
 		node_t op1 = create_node(strdup("<opter>"));
@@ -665,176 +575,26 @@ exp: INT {
 	| ID {
 		$<node>$ = create_node(strdup("<fn>"));
 		add_child($1, $<node>$);
-		// fprintf(stderr, "Inserindo no fn id: %lu\n", parents->size);
 		insert(0, $<node>$, parents);
 	} fntail {
 		$$ = $<node>2;
 		removeAt(0, parents);
 	}
-	| ID {
-		$$ = $1;
-	}
-	| '(' exp ')' {
-		$$ = create_node(strdup("<exp>"));
-		add_child($2, $$);
-	}
+	| '(' exp ')' { add_child($2, ($$ = create_node(strdup("<exp>")))); }
 	/* Erros */
-	| exp '*' error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		sprintf(syn_errormsg, "Expected expression while processing '*'");
-	}
-	| exp '/' error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		sprintf(syn_errormsg, "Expected expression while processing '/'");
-	}
-	| exp '%' error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		sprintf(syn_errormsg, "Expected expression while processing '%%'");
-	}
-	| exp '+' error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		sprintf(syn_errormsg, "Expected expression while processing '+'");
-	}
-	| exp '-' error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($<node>2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		sprintf(syn_errormsg, "Expected expression while processing '-'");
-	}
-	| exp OPBIN3 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN4 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN5 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN6 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN7 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN8 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN9 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
-	| exp OPBIN10 error {
-		node_t exp = create_node(strdup("<exp>"));
-		node_t op = create_node(strdup("<opbin>"));
-		add_child($2, op);
-		add_child($1, exp);
-		add_child(op, exp);
-		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
-		add_child(err, exp);
-		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression while processing '%s'", $2->value);
-	}
+	| exp '*' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp '/' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp '%' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp '+' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp '-' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN1 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN2 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN3 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN4 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN5 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN6 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN7 error { ADD_BIN_EXP_ERR($$, $1, $2); }
+	| exp OPBIN8 error { ADD_BIN_EXP_ERR($$, $1, $2); }
 	| ID OPASSIGN error {
 		node_t exp = create_node(strdup("<exp>"));
 		node_t op = create_node(strdup("<opassign>"));
@@ -842,30 +602,27 @@ exp: INT {
 		add_child($1, exp);
 		add_child(op, exp);
 		node_t err = create_node(ERR_TOKEN);
-		add_child($<node>3, err);
 		add_child(err, exp);
 		$$ = exp;
-		ssprintf(syn_errormsg, "Expected expression in '%s %s'", ((node_t) $1->children->first->value)->value, $2->value);
+		ssprintf(
+			syn_errormsg,
+			"Expected expression in '%s %s'",
+			FIRSTCHILD_VALUE($1),
+			$2->value
+			);
 	}
 ;
 
 fntail: '(' arglist ')'
-	| '(' arglist error {
-		/* TODO: Incluir algo na árvore? */
-		ssprintf(syn_errormsg, "Expected ')'");
-	}
+	| '(' arglist error { ssprintf(syn_errormsg, "Expected ')'"); }
 ;
 
-arglist: %empty {}
-	| exp argtail {
-		add_child($1, parents->first->value);
-	}
+arglist: %empty
+	| exp argtail { add_child($1, parents->first->value); }
 ;
 
-argtail: %empty {}
-	| ',' exp argtail {
-		add_child($2, parents->first->value);
-	}
+argtail: %empty
+	| ',' exp argtail { add_child($2, parents->first->value); }
 ;
 
 %%
@@ -879,41 +636,16 @@ int yyerror(int *max, int *childrenCount, char *s) {
 	return 0;
 }
 
-int main(int argc, char **argv) {
-	if (argc < 2) {
-		fprintf(stderr, "No input file\n");
-		exit(EXIT_FAILURE);
-	}
-	setlocale(LC_ALL, "");
-
-	strcpy(filename, argv[1]);
-	root = create_node(filename);
-	parents = create_list();
-	int max, *childrenCount = NULL;
-
-	yyin = fopen(argv[1], "r");
-
-	if (yyparse(&max, childrenCount)) {
-		fprintf(stderr, "Unhandled error while parsing\n");
-		delete_list(parents);
-		exit(EXIT_FAILURE);
-	}
-
-	if (*syn_errormsg) {
-		fprintf(stderr, ERR_TEMPLATE, syn_errormsg);
-	}
-	return 0;
-}
-
 void ssprintf(char *target, char *template, ...) {
 	va_list ap;
 	va_start(ap, template);
-	vsprintf(target, template, ap);
+	vsnprintf(target, NAMESIZE, template, ap);
 	va_end(ap);
 }
 
 void print(node_t node, void *data) {
-	int *childrenCount = (int *) data;
+	printData_t *dataSt = data;
+	int *childrenCount = dataSt->childrenCount;
 
 	int l = level(node);
 	childrenCount[l - 1] = node->children->size;
@@ -936,7 +668,24 @@ void print(node_t node, void *data) {
 			node->children->size ? TREECHILDFIRST : TREEBRANCH
 			);
 	}
-	printf("%s\n", (char *) node->value);
+	printf("%s",
+		node->children->size > 0 && node->parent != NULL ?
+			TREEROOTCOLOR :
+			TREELEAFCOLOR
+		);
+	dataSt->val_print(node);
+	printf("\033[0m\n");
+}
+
+void print_syntatic(node_t node) {
+	printf("%s", (char *) node->value);
+}
+
+void print_context(node_t node) {
+	elem_t it = ((list_t) node->value)->first;
+	for (; it != NULL; it = it->next) {
+		printf("%s%s", (char *) it->value, it->next != NULL ? ", " : "");
+	}
 }
 
 void max_level(node_t node, void *data) {
@@ -947,17 +696,85 @@ void max_level(node_t node, void *data) {
 
 void free_values(node_t node, void *data) {
 	if (strcmp(node->value, ERR_TOKEN) && strcmp(node->value, filename)) {
-		printf("Liberando (%d) (%s) ", node->id, (char *) node->value);
-		if (node->parent != NULL)
-			printf("Pai (%d) (%s)\n", node->parent->id, (char *) node->parent->value);
-		else
-			printf("\n");
 		free(node->value);
-	} else {
-		printf("Não liberando (%d) (%s) ", node->id, (char *) node->value);
-		if (node->parent != NULL)
-			printf("Pai (%d) (%s)\n", node->parent->id, (char *) node->parent->value);
-		else
-			printf("\n");
 	}
+}
+
+void free_context(node_t node, void *data) {
+	elem_t it = ((list_t) node->value)->first;
+	for (; it != NULL; it = it->next) {
+		free(it->value);
+	}
+	delete_list(node->value);
+}
+
+int main(int argc, char **argv) {
+	if (argc < 2) {
+		fprintf(stderr, "No input file\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/** ========= Inicializando valores ================ **/
+	strncpy(filename, argv[1], FILENAMESIZE);           /**/
+	root = create_node(filename);                       /**/
+	context = create_node(create_list());               /**/
+	current_context = context;                          /**/
+	parents = create_list();                            /**/
+	int max = 0, *childrenCount = NULL;                 /**/
+                                                        /**/
+	yyin = fopen(argv[1], "r");                         /**/
+	insert(0, root, parents);                           /**/
+	/** ================================================ **/
+
+	int ret;
+	if ((ret = yyparse(&max, childrenCount))) {
+		fprintf(stderr, "Unhandled error while parsing\n");
+	}
+
+	if (*syn_errormsg) {
+		fprintf(stderr, ERR_TEMPLATE, syn_errormsg);
+	}
+
+	/** ============== Finalizando valores ================= **/
+	removeAt(0, parents);                                   /**/
+                                                            /**/
+		/* Pega a profundidade da árvore */                 /**/
+	depth_pre(max_level, context, &max, NULL, NULL);        /**/
+	childrenCount = (int *) calloc(max, sizeof(int));       /**/
+		/* Imprime contextos */                             /**/
+	printf("Árvore de contextos / Tabela de símbolos\n");   /**/
+	printData_t ctx_data = {childrenCount, print_context};  /**/
+	depth_pre(print, context, &ctx_data, NULL, NULL);       /**/
+	free(childrenCount);                                    /**/
+	/* Limpa o contexto */                                  /**/
+	depth_pos(free_context, context, NULL, NULL, NULL);     /**/
+	delete_node(context);                                   /**/
+                                                            /**/
+		/* Sublinha o nome do arquivo */                    /**/
+                                                            /**/
+	/* sprintf(              */                             /**/
+	/*  root->value,         */                             /**/
+	/*  "\033[4m%s\033[0m",  */                             /**/
+	/*  (char *) root->value */                             /**/
+	/* );                    */                             /**/
+                                                            /**/
+		/* Pega a profundidade da árvore */                 /**/
+	depth_pre(max_level, root, &max, NULL, NULL);           /**/
+	childrenCount = (int *) calloc(max, sizeof(int));       /**/
+		/* Imprime a árvore sintática */                    /**/
+	printf("Árvore sintática abstrata\n");                  /**/
+	printData_t syn_data = {childrenCount, print_syntatic}; /**/
+	depth_pre(print, root, &syn_data, NULL, NULL);          /**/
+	free(childrenCount);                                    /**/
+		/* Limpa a árvore sintática */                      /**/
+	depth_pos(free_values, root, NULL, NULL, NULL);         /**/
+	delete_node(root);                                      /**/
+	delete_list(parents);                                   /**/
+                                                            /**/
+		/* Limpa coisas do flex */                          /**/
+	fclose(yyin);                                           /**/
+	yylex_destroy();                                        /**/
+	/** ==================================================== **/
+
+	return ret;
 }

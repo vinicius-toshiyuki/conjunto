@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 54 "sintatico.y"
+#line 177 "sintatico.y"
 
 #include "tree.h"
 
@@ -60,24 +60,24 @@ extern int yydebug;
     YYEOF = 0,                     /* "end of file"  */
     YYerror = 256,                 /* error  */
     YYUNDEF = 257,                 /* "invalid token"  */
-    ID = 258,                      /* ID  */
-    TYPE = 259,                    /* TYPE  */
-    OPPOS = 260,                   /* OPPOS  */
-    OPUNI = 261,                   /* OPUNI  */
-    IN = 262,                      /* IN  */
-    OPBIN3 = 263,                  /* OPBIN3  */
-    OPBIN4 = 264,                  /* OPBIN4  */
-    OPBIN5 = 265,                  /* OPBIN5  */
-    OPBIN6 = 266,                  /* OPBIN6  */
-    OPBIN7 = 267,                  /* OPBIN7  */
-    OPBIN8 = 268,                  /* OPBIN8  */
-    OPBIN9 = 269,                  /* OPBIN9  */
-    OPBIN10 = 270,                 /* OPBIN10  */
-    OPASSIGN = 271,                /* OPASSIGN  */
-    STRING = 272,                  /* STRING  */
-    CHAR = 273,                    /* CHAR  */
-    INT = 274,                     /* INT  */
-    FLOAT = 275,                   /* FLOAT  */
+    STRING = 258,                  /* STRING  */
+    CHAR = 259,                    /* CHAR  */
+    INT = 260,                     /* INT  */
+    FLOAT = 261,                   /* FLOAT  */
+    ID = 262,                      /* ID  */
+    TYPE = 263,                    /* TYPE  */
+    IN = 264,                      /* IN  */
+    OPPOS = 265,                   /* OPPOS  */
+    OPUNI = 266,                   /* OPUNI  */
+    OPBIN1 = 267,                  /* OPBIN1  */
+    OPBIN2 = 268,                  /* OPBIN2  */
+    OPBIN3 = 269,                  /* OPBIN3  */
+    OPBIN4 = 270,                  /* OPBIN4  */
+    OPBIN5 = 271,                  /* OPBIN5  */
+    OPBIN6 = 272,                  /* OPBIN6  */
+    OPBIN7 = 273,                  /* OPBIN7  */
+    OPBIN8 = 274,                  /* OPBIN8  */
+    OPASSIGN = 275,                /* OPASSIGN  */
     IF = 276,                      /* IF  */
     WHILE = 277,                   /* WHILE  */
     FORALL = 278,                  /* FORALL  */
@@ -93,7 +93,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 58 "sintatico.y"
+#line 181 "sintatico.y"
 
 	char name[32768];
 	node_t node;

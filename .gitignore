@@ -9,6 +9,7 @@ tac.tab.c
 tac.tab.h
 
 *.html
+*.output
 
 docs/
 *.zip

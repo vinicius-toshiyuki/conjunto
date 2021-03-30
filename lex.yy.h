@@ -212,7 +212,9 @@ extern char *yytext;
 #ifdef YY_HEADER_EXPORT_START_CONDITIONS
 #define INITIAL 0
 #define expect_string 1
-#define expect_char 2
+#define expect_string_end 2
+#define expect_char 3
+#define expect_char_end 4
 
 #endif
 
@@ -469,6 +471,6 @@ extern int yylex (void);
 #line 248 "lexico.l"
 
 
-#line 473 "lex.yy.h"
+#line 475 "lex.yy.h"
 #undef yyIN_HEADER
 #endif /* yyHEADER_H */

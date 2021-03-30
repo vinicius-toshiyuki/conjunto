@@ -50,6 +50,7 @@ TYPE (int|float|set|elem)
 DECIMAL (([[:digit:]]{-}[0])[[:digit:]]*)
 HEXA (0[xX][[:xdigit:]]+)
 OCTAL (0[0-7]*)
+ESCAPE ("\\\\"|"\\0"|"\\a"|"\\b"|"\\t"|"\\n"|"\\v"|"\\f"|"\\r"|"\\e"|"\\"[xX][[:xdigit:]]+|"\\"{OCTAL})
 
 dseq      ([[:digit:]]+)
 dseq_opt  ([[:digit:]]*)
@@ -84,7 +85,9 @@ OPPOS ("++"|"--")
 W [ \t\n]+
 
 %x expect_string
+%x expect_string_end
 %x expect_char
+%x expect_char_end
 
 	char errormsg[512] = "";
 	int noupdate = -1;
@@ -211,8 +214,13 @@ EMPTY RETURNUPDATE EMPTY;
 }
 
 \"/.*\" { BEGIN(expect_string); yymore(); }
-<expect_string>"\\\""|[^"\\]* { yymore(); }
-<expect_string>\" {
+<expect_string>"\\\""   |
+<expect_string>{ESCAPE} |
+<expect_string>[^"\\]*  {
+	BEGIN(expect_string_end);
+	yymore();
+}
+<expect_string_end>\" {
 	BEGIN(INITIAL);
 	char *val = strdup(yytext);
 	yylval.node = create_node(val);
@@ -220,21 +228,13 @@ EMPTY RETURNUPDATE EMPTY;
 }
 
 ' { BEGIN(expect_char); yymore(); }
-<expect_char>"\\'"                 |
-<expect_char>"\\\\"                |
-<expect_char>"\\0"                 |
-<expect_char>"\\a"                 |
-<expect_char>"\\b"                 |
-<expect_char>"\\t"                 |
-<expect_char>"\\n"                 |
-<expect_char>"\\v"                 |
-<expect_char>"\\f"                 |
-<expect_char>"\\r"                 |
-<expect_char>"\\e"                 |
-<expect_char>"\\"[xX][[:xdigit:]]+ |
-<expect_char>"\\"{OCTAL}           |
-<expect_char>[^'\\]                { yymore(); }
-<expect_char>' {
+<expect_char>"\\'"    |
+<expect_char>{ESCAPE} |
+<expect_char>[^'\\]   {
+	BEGIN(expect_char_end);
+	yymore();
+}
+<expect_char_end>' {
 	BEGIN(INITIAL);
 	char *val = strdup(yytext);
 	yylval.node = create_node(val);
@@ -242,6 +242,6 @@ EMPTY RETURNUPDATE EMPTY;
 }
 
 	/* Caractere não reconhecido -> Erro */
-. sprintf(errormsg, "Unexpected character: %s", yytext);
+<*>. sprintf(errormsg, "Unexpected character: %s", yytext);
 
 %%

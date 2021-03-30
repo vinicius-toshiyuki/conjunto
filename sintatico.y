@@ -189,7 +189,7 @@ node_t context; /* Árvore de contextos */
 } <node>
 
 /* ============== Definições de tokens e tipos ========== /**/
-%type <node> cmd                                          /**/
+%type <node> cmd declaration                              /**/
 %type <node> exp                                          /**/
 %token <node> STRING CHAR INT FLOAT                       /**/
 %token <node> ID TYPE                                     /**/
@@ -226,18 +226,18 @@ node_t context; /* Árvore de contextos */
 
 %%
 
-prog: cmds;
+prog: declarations;
 
-cmds: %empty
-	| cmd {
+declarations: %empty
+	| declaration {
 		add_child($1, parents->first->value);
-	} cmdstail
+	} declarationstail
 ;
 
-cmdstail: %empty
-	| cmd {
+declarationstail: %empty
+	| declaration {
 		add_child($1, parents->first->value);
-	} cmdstail
+	} declarationstail
 ;
 
 cmd: IF '(' exp ')' cmd %prec IF {
@@ -285,30 +285,7 @@ cmd: IF '(' exp ')' cmd %prec IF {
 	| ';' {
 		$$ = create_node(strdup("<emptycmd>"));
 	}
-	| TYPE ID {
-		$<node>$ = create_node(strdup("<declr>"));
-		add_child($1, $<node>$);
-		add_child($2, $<node>$);
-		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
-		insert(0, $<node>$, parents);
-	} idlist ';' {
-		$$ = $<node>3;
-		removeAt(0, parents);
-	}
-	| TYPE ID '(' {
-		$<node>$ = create_node(strdup("<declr_fn>"));
-		add_child($1, $<node>$);
-		add_child($2, $<node>$);
-		ADD_CONTEXT(FUN, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
-		PUSH_CONTEXT;
-
-		node_t pars = create_node(strdup("<parlist>"));
-		add_child(pars, $<node>$);
-		insert(0, pars, parents); /* É removido dentro de declr_fntail */
-	} declr_fntail {
-		POP_CONTEXT;
-		$$ = $<node>4;
-	}
+	| declaration
 	/* Erros */
 	| IF '(' error ')' cmd %prec IF {
 		$$ = create_node(strdup("<if>"));
@@ -340,6 +317,45 @@ cmd: IF '(' exp ')' cmd %prec IF {
 		add_child(create_node(ERR_TOKEN), $$);
 		ssprintf(syn_errormsg, "Expected return expression");
 	}
+;
+
+cmds: %empty
+	| cmd {
+		add_child($1, parents->first->value);
+	} cmdstail
+;
+
+cmdstail: %empty
+	| cmd {
+		add_child($1, parents->first->value);
+	} cmdstail
+;
+
+declaration: TYPE ID {
+		$<node>$ = create_node(strdup("<declr>"));
+		add_child($1, $<node>$);
+		add_child($2, $<node>$);
+		ADD_CONTEXT(VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+		insert(0, $<node>$, parents);
+	} idlist ';' {
+		$$ = $<node>3;
+		removeAt(0, parents);
+	}
+	| TYPE ID '(' {
+		$<node>$ = create_node(strdup("<declr_fn>"));
+		add_child($1, $<node>$);
+		add_child($2, $<node>$);
+		ADD_CONTEXT(FUN, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+		PUSH_CONTEXT;
+
+		node_t pars = create_node(strdup("<parlist>"));
+		add_child(pars, $<node>$);
+		insert(0, pars, parents); /* É removido dentro de declr_fntail */
+	} declr_fntail {
+		POP_CONTEXT;
+		$$ = $<node>4;
+	}
+	/* Erros */
 	| TYPE idlist {
 		$<node>$ = create_node(strdup("<declr>"));
 		add_child($1, $<node>$);
@@ -714,17 +730,17 @@ int main(int argc, char **argv) {
 		exit(EXIT_FAILURE);
 	}
 
-	/** ========= Inicializando valores ================ **/
-	strncpy(filename, argv[1], FILENAMESIZE);           /**/
-	root = create_node(filename);                       /**/
-	context = create_node(create_list());               /**/
-	current_context = context;                          /**/
-	parents = create_list();                            /**/
-	int max = 0, *childrenCount = NULL;                 /**/
-                                                        /**/
-	yyin = fopen(argv[1], "r");                         /**/
-	insert(0, root, parents);                           /**/
-	/** ================================================ **/
+	/** ============= Inicializando valores ================ **/
+	strncpy(filename, argv[1], FILENAMESIZE);               /**/
+	root = create_node(filename);                           /**/
+	context = create_node(create_list());                   /**/
+	current_context = context;                              /**/
+	parents = create_list();                                /**/
+	int max = 0, *childrenCount = NULL;                     /**/
+                                                            /**/
+	yyin = fopen(argv[1], "r");                             /**/
+	insert(0, root, parents);                               /**/
+	/** ==================================================== **/
 
 	int ret;
 	if ((ret = yyparse(&max, childrenCount))) {

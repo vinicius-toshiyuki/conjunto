@@ -26,7 +26,7 @@ log
 
 # automake
 
-Makefile.in
+# Makefile.in
 /ar-lib
 /mdate-sh
 /py-compile
@@ -41,17 +41,17 @@ autom4te.cache
 /autoscan.log
 /autoscan-*.log
 /aclocal.m4
-/compile
-/config.guess
+# /compile
+# /config.guess
 /config.h.in
 /config.log
 /config.status
-/config.sub
+# /config.sub
 # /configure
 /configure.scan
 /depcomp
 # install-sh
-/missing
+# /missing
 /stamp-h1
 
 # libtool

@@ -50,7 +50,7 @@ autom4te.cache
 # /configure
 /configure.scan
 /depcomp
-/install-sh
+# install-sh
 /missing
 /stamp-h1
 

@@ -1,4 +1,4 @@
-#include "list.h"
+#include "../include/list.h"
 #include <stdio.h>
 
 elem_t create_elem(void *value) {

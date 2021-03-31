@@ -35,8 +35,8 @@
    especially those whose name start with YY_ or yy_.  They are
    private implementation details that can be changed or removed.  */
 
-#ifndef YY_YY_SINTATICO_TAB_H_INCLUDED
-# define YY_YY_SINTATICO_TAB_H_INCLUDED
+#ifndef YY_YY_SINTATICO_H_INCLUDED
+# define YY_YY_SINTATICO_H_INCLUDED
 /* Debug traces.  */
 #ifndef YYDEBUG
 # define YYDEBUG 0
@@ -45,11 +45,11 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 177 "sintatico.y"
+#line 175 "sintatico.y"
 
 #include "tree.h"
 
-#line 53 "sintatico.tab.h"
+#line 53 "sintatico.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -88,17 +88,46 @@ extern int yydebug;
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
+/* Token kinds.  */
+#define YYEOF 0
+#define YYerror 256
+#define YYUNDEF 257
+#define STRING 258
+#define CHAR 259
+#define INT 260
+#define FLOAT 261
+#define ID 262
+#define TYPE 263
+#define IN 264
+#define OPPOS 265
+#define OPUNI 266
+#define OPBIN1 267
+#define OPBIN2 268
+#define OPBIN3 269
+#define OPBIN4 270
+#define OPBIN5 271
+#define OPBIN6 272
+#define OPBIN7 273
+#define OPBIN8 274
+#define OPASSIGN 275
+#define IF 276
+#define WHILE 277
+#define FORALL 278
+#define FOR 279
+#define ELSE 280
+#define RETURN 281
+#define EMPTY 282
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 181 "sintatico.y"
+#line 179 "sintatico.y"
 
 	char name[32768];
 	node_t node;
 
-#line 102 "sintatico.tab.h"
+#line 131 "sintatico.h"
 
 };
 typedef union YYSTYPE YYSTYPE;
@@ -111,4 +140,4 @@ extern YYSTYPE yylval;
 
 int yyparse (int *max, int *childrenCount);
 
-#endif /* !YY_YY_SINTATICO_TAB_H_INCLUDED  */
+#endif /* !YY_YY_SINTATICO_H_INCLUDED  */

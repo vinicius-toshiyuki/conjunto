@@ -1,11 +1,11 @@
-%option nounput noinput
+%option nounput noinput noyywrap
 %{
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
 #include <stdlib.h>
-#include "sintatico.tab.h"
-#include "tree.h"
+#include "sintatico.h"
+#include "../include/tree.h"
 
 #define YY_USER_ACTION { \
 	if (strcmp(errormsg, "") && yy_act != lastrule) { \

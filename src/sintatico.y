@@ -9,15 +9,14 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "lex.yy.h"
-#include "tree.h"
+#include "../include/lexico.h"
+#include "../include/tree.h"
 
 #define NAMESIZE 32768
 #define FILENAMESIZE 512
 
 /* ======== Definição de carcteres para impressão da árvore ===== */
-#define __UNICODE_CHARS_SUPPPORT__
-#ifdef __UNICODE_CHARS_SUPPPORT__
+#ifdef PARSER_UNICODE_SUPPORT
 
 #define TREECHILDFIRST "┬"
 #define TREECHILDMID "├"
@@ -42,18 +41,17 @@
 /* ============================================================== */
 
 /* ================== Definição de cores ======================== */
-#define CLEARCOLOR "\033[0m"
-#define __TRUE_COLOR_SUPPORT__
-#ifdef __TRUE_COLOR_SUPPORT__
+#define PARSER_CLEARCOLOR "\033[0m"
+#ifdef PARSER_TRUE_COLOR_SUPPORT
 
 #define TREEROOTCOLOR "\033[38;2;170;170;170m"
 #define TREELEAFCOLOR "\033[1m"
 
 #define ERR_COLOR "\033[48;2;145;40;40m"
-#define ERR_TOKEN ERR_COLOR "<error>" CLEARCOLOR
+#define ERR_TOKEN ERR_COLOR "<error>" PARSER_CLEARCOLOR
 #define ERR_TEMPLATE \
-	ERR_COLOR "  > %s" CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR CLEARCOLOR "\n"
-#define ERR_LOCATION ERR_COLOR "%s:%d:%d" CLEARCOLOR "\n"
+	ERR_COLOR "  > %s" PARSER_CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n"
+#define ERR_LOCATION ERR_COLOR "%s:%d:%d" PARSER_CLEARCOLOR "\n"
 
 #else
 
@@ -61,10 +59,10 @@
 #define TREELEAFCOLOR "\033[1m"
 
 #define ERR_COLOR "\033[31;7m"
-#define ERR_TOKEN ERR_COLOR "<error>" CLEARCOLOR
+#define ERR_TOKEN ERR_COLOR "<error>" PARSER_CLEARCOLOR
 #define ERR_TEMPLATE \
-	ERR_COLOR "  > %s" CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR CLEARCOLOR "\n"
-#define ERR_LOCATION ERR_COLOR "%s:%d:%d" CLEARCOLOR "\n"
+	ERR_COLOR "  > %s" PARSER_CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n"
+#define ERR_LOCATION ERR_COLOR "%s:%d:%d" PARSER_CLEARCOLOR "\n"
 #endif
 /* ============================================================== */
 
@@ -122,22 +120,22 @@ enum {
 };
 #define ADD_CONTEXT(ENTRY_CONTEXT, ID_CONTEXT, TYPE_CONTEXT) {  \
 	char TEMPLATE[] = "<%s '%s' (%s)>";                         \
-	char *ENTRY, *TYPE;                                          \
+	char *ENTRY, *ENTRYTYPE;                                          \
 	char FUNCTION[] = "function", VARIABLE[] = "variable";      \
 	switch (ENTRY_CONTEXT) {                                    \
-		case FUN: TYPE = FUNCTION; break;                       \
-		case VAR: TYPE = VARIABLE; break;                       \
+		case FUN: ENTRYTYPE = FUNCTION; break;                       \
+		case VAR: ENTRYTYPE = VARIABLE; break;                       \
 		default:                                                \
 			fprintf(stderr, "Invalid entry type in context\n"); \
 			exit(EXIT_FAILURE);                                 \
 	}                                                           \
 	ENTRY = (char *) malloc(                                    \
 		strlen(TEMPLATE) +                                      \
-		strlen(TYPE) +                                          \
+		strlen(ENTRYTYPE) +                                          \
 		strlen(ID_CONTEXT) +                                    \
 		strlen(TYPE_CONTEXT) + 1                                \
 		);                                                      \
-	sprintf(ENTRY, TEMPLATE, TYPE, ID_CONTEXT, TYPE_CONTEXT);   \
+	sprintf(ENTRY, TEMPLATE, ENTRYTYPE, ID_CONTEXT, TYPE_CONTEXT);   \
 	insert(0, ENTRY, current_context->value);                   \
 }
 

@@ -8,14 +8,16 @@ Uma linguagem derivada da linguagem C com suporte a conjuntos.
 - `bison`
 - `gcc`
 - `make`
+- `autoreconf`
 
 ```bash
-sudo apt install gcc make flex bison
+sudo apt install flex bison gcc make autoconf
 ```
 
 ## Executando
 
 ```bash
+autoreconf --install
 ./configure
 make
 ./src/parser test/subset_sum1.conj
@@ -28,6 +30,6 @@ cores de 24 bits, respectivamente, se o seu terminal suportar.
 
 ## TODO
 
-- [*] Àrvore de contexto / tabela de símbolos
+- [x] Àrvore de contexto / tabela de símbolos
 - [ ] Arrumar a documentação
 - [ ] Não alocar a mesma coisa um zilhão de vezes

@@ -26,12 +26,12 @@ log
 
 # automake
 
-# Makefile.in
+Makefile.in
 /ar-lib
 /mdate-sh
 /py-compile
 /test-driver
-# /ylwrap
+/ylwrap
 .deps/
 .dirstamp
 
@@ -41,17 +41,17 @@ autom4te.cache
 /autoscan.log
 /autoscan-*.log
 /aclocal.m4
-# /compile
-# /config.guess
-# /config.h.in
+/compile
+/config.guess
+/config.h.in
 /config.log
 /config.status
-# /config.sub
-# /configure
+/config.sub
+/configure
 /configure.scan
-# /depcomp
-# install-sh
-# /missing
+/depcomp
+install-sh
+/missing
 /stamp-h1
 
 # libtool

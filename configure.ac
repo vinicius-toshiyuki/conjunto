@@ -23,7 +23,6 @@ AC_CHECK_HEADERS(libintl.h limits.h locale.h malloc.h stddef.h wchar.h)
 
 AC_CHECK_TYPES(ptrdiff_t)
 
-AC_CONFIG_HEADERS(config.h)
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile

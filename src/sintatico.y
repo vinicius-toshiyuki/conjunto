@@ -11,60 +11,10 @@
 #include <assert.h>
 #include "../include/lexico.h"
 #include "../include/tree.h"
+#include "../include/util.h"
 
 #define NAMESIZE 32768
 #define FILENAMESIZE 512
-
-/* ======== Definição de carcteres para impressão da árvore ===== */
-#ifdef PARSER_UNICODE_SUPPORT
-
-#define TREECHILDFIRST "┬"
-#define TREECHILDMID "├"
-#define TREECHILDLAST "└"
-#define TREECHILD "│"
-#define TREELEAF "○"
-#define TREEBRANCH "─"
-
-#define ERR_SEPARATOR "══════════"
-
-#else
-
-#define TREECHILDFIRST "."
-#define TREECHILDMID "+"
-#define TREECHILDLAST "+"
-#define TREECHILD "|"
-#define TREELEAF ">"
-#define TREEBRANCH "-"
-
-#define ERR_SEPARATOR "=========="
-#endif
-/* ============================================================== */
-
-/* ================== Definição de cores ======================== */
-#define PARSER_CLEARCOLOR "\033[0m"
-#ifdef PARSER_TRUE_COLOR_SUPPORT
-
-#define TREEROOTCOLOR "\033[38;2;170;170;170m"
-#define TREELEAFCOLOR "\033[1m"
-
-#define ERR_COLOR "\033[48;2;145;40;40m"
-#define ERR_TOKEN ERR_COLOR "<error>" PARSER_CLEARCOLOR
-#define ERR_TEMPLATE \
-	ERR_COLOR "  > %s" PARSER_CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n"
-#define ERR_LOCATION ERR_COLOR "%s:%d:%d" PARSER_CLEARCOLOR "\n"
-
-#else
-
-#define TREEROOTCOLOR "\033[90m"
-#define TREELEAFCOLOR "\033[1m"
-
-#define ERR_COLOR "\033[31;7m"
-#define ERR_TOKEN ERR_COLOR "<error>" PARSER_CLEARCOLOR
-#define ERR_TEMPLATE \
-	ERR_COLOR "  > %s" PARSER_CLEARCOLOR "\n" ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n"
-#define ERR_LOCATION ERR_COLOR "%s:%d:%d" PARSER_CLEARCOLOR "\n"
-#endif
-/* ============================================================== */
 
 /* ========================= Macros ============================= */
 #define ADD_BIN_EXP(RES, EXP1, OP, EXP2) {      \
@@ -77,20 +27,20 @@
 	RES = exp;                                  \
 }
 
-#define ADD_BIN_EXP_ERR(RES, EXP1, OP) {             \
-	node_t exp = create_node(strdup("<exp>"));       \
-	node_t op = create_node(strdup("<opbin>"));      \
-	add_child(OP, op);                               \
-	add_child(EXP1, exp);                            \
-	add_child(op, exp);                              \
-	node_t err = create_node(ERR_TOKEN);             \
-	add_child(err, exp);                             \
-	RES = exp;                                       \
-	ssprintf(                                        \
-		syn_errormsg,                                \
-		"Expected expression while processing '%s'", \
-		OP->value                                    \
-		);                                           \
+#define ADD_BIN_EXP_ERR(RES, EXP1, OP) {        \
+	node_t exp = create_node(strdup("<exp>"));  \
+	node_t op = create_node(strdup("<opbin>")); \
+	add_child(OP, op);                          \
+	add_child(EXP1, exp);                       \
+	add_child(op, exp);                         \
+	node_t err = create_node(ERR_TOKEN);        \
+	add_child(err, exp);                        \
+	RES = exp;                                  \
+	ssprintf(                                   \
+		syn_errormsg,                           \
+		"Expected expression before '%s'",      \
+		OP->value                               \
+		);                                      \
 }
 
 #define ADD_UNI_EXP(RES, OP, EXP1) {            \
@@ -105,10 +55,10 @@
 #define FIRSTCHILD_VALUE(NODE) \
 	((char *) ((node_t) NODE->children->first->value)->value)
 
-#define PUSH_CONTEXT { \
-	node_t OLD_CONTEXT = current_context; \
+#define PUSH_CONTEXT {                            \
+	node_t OLD_CONTEXT = current_context;         \
 	current_context = create_node(create_list()); \
-	add_child(current_context, OLD_CONTEXT); \
+	add_child(current_context, OLD_CONTEXT);      \
 }
 
 #define POP_CONTEXT \
@@ -118,25 +68,25 @@ enum {
 	FUN,
 	VAR
 };
-#define ADD_CONTEXT(ENTRY_CONTEXT, ID_CONTEXT, TYPE_CONTEXT) {  \
-	char TEMPLATE[] = "<%s '%s' (%s)>";                         \
-	char *ENTRY, *ENTRYTYPE;                                          \
-	char FUNCTION[] = "function", VARIABLE[] = "variable";      \
-	switch (ENTRY_CONTEXT) {                                    \
-		case FUN: ENTRYTYPE = FUNCTION; break;                       \
-		case VAR: ENTRYTYPE = VARIABLE; break;                       \
-		default:                                                \
-			fprintf(stderr, "Invalid entry type in context\n"); \
-			exit(EXIT_FAILURE);                                 \
-	}                                                           \
-	ENTRY = (char *) malloc(                                    \
-		strlen(TEMPLATE) +                                      \
-		strlen(ENTRYTYPE) +                                          \
-		strlen(ID_CONTEXT) +                                    \
-		strlen(TYPE_CONTEXT) + 1                                \
-		);                                                      \
-	sprintf(ENTRY, TEMPLATE, ENTRYTYPE, ID_CONTEXT, TYPE_CONTEXT);   \
-	insert(0, ENTRY, current_context->value);                   \
+#define ADD_CONTEXT(ENTRY_CONTEXT, ID_CONTEXT, TYPE_CONTEXT) {     \
+	char TEMPLATE[] = "<%s '%s' (%s)>";                            \
+	char *ENTRY, *ENTRYTYPE;                                       \
+	char FUNCTION[] = "function", VARIABLE[] = "variable";         \
+	switch (ENTRY_CONTEXT) {                                       \
+	case FUN: ENTRYTYPE = FUNCTION; break;                         \
+	case VAR: ENTRYTYPE = VARIABLE; break;                         \
+	default:                                                       \
+	fprintf(stderr, "Invalid entry type in context\n");            \
+	exit(EXIT_FAILURE);                                            \
+	}                                                              \
+	ENTRY = (char *) malloc(                                       \
+	strlen(TEMPLATE) +                                             \
+	strlen(ENTRYTYPE) +                                            \
+	strlen(ID_CONTEXT) +                                           \
+	strlen(TYPE_CONTEXT) + 1                                       \
+	);                                                             \
+	sprintf(ENTRY, TEMPLATE, ENTRYTYPE, ID_CONTEXT, TYPE_CONTEXT); \
+	insert(0, ENTRY, current_context->value);                      \
 }
 
 /* ============================================================== */
@@ -195,8 +145,8 @@ node_t context; /* Árvore de contextos */
 %token <node> OPBIN5 OPBIN6 OPBIN7 OPBIN8 OPASSIGN        /**/
 %token <node> '*' '/' '+' '-' '%' '!' '~' '&'             /**/
                                                           /**/
-%token <name> IF WHILE FORALL FOR ELSE RETURN             /**/
-%token <name> EMPTY                                       /**/
+%token IF WHILE FORALL FOR ELSE RETURN                    /**/
+%token EMPTY                                              /**/
                                                           /**/
 %type arglist argtail parlist partail forargs fortail     /**/
 /* ====================================================== /**/
@@ -289,26 +239,26 @@ cmd: IF '(' exp ')' cmd %prec IF {
 		$$ = create_node(strdup("<if>"));
 		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
-		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
+		ssprintf(syn_errormsg, "Expected condition in 'if' statement");
 	}
 	| IF '(' error ')' cmd ELSE cmd %prec ELSE {
 		$$ = create_node(strdup("<if-else>"));
 		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
 		add_child($7, $$);
-		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
+		ssprintf(syn_errormsg, "Expected condition in 'if-else' statement");
 	}
 	| WHILE '(' error ')' cmd {
 		$$ = create_node(strdup("<while>"));
 		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
-		ssprintf(syn_errormsg, "Expected condition in '%s' statment", $1);
+		ssprintf(syn_errormsg, "Expected condition in 'while' statement");
 	}
 	| FORALL '(' error ')' cmd {
 		$$ = create_node(strdup("<forall>"));
 		add_child(create_node(ERR_TOKEN), $$);
 		add_child($5, $$);
-		ssprintf(syn_errormsg, "Expected in-expression in '%s' statment", $1);
+		ssprintf(syn_errormsg, "Expected in-expression in 'forall' statement");
 	}
 	| RETURN error ';' {
 		$$ = create_node(strdup("<return>"));
@@ -526,7 +476,7 @@ idlist: %empty
 	} idlist
 	| ',' error {
 		add_child(create_node(ERR_TOKEN), parents->first->value);
-		ssprintf(syn_errormsg, "Expected an indentifier");
+		ssprintf(syn_errormsg, "Expected an identifier");
 	} idlist
 ;
 
@@ -682,17 +632,18 @@ void print(node_t node, void *data) {
 			node->children->size ? TREECHILDFIRST : TREEBRANCH
 			);
 	}
-	printf("%s",
-		node->children->size > 0 && node->parent != NULL ?
-			TREEROOTCOLOR :
-			TREELEAFCOLOR
-		);
 	dataSt->val_print(node);
-	printf("\033[0m\n");
+	printf("\n");
 }
 
 void print_syntatic(node_t node) {
+	printf("%s",
+		node->children->size > 0 && node->parent != NULL ?
+			TREEFADECOLOR :
+			TREEACCENTCOLOR
+		);
 	printf("%s", (char *) node->value);
+	printf("\033[0m");
 }
 
 void print_context(node_t node) {
@@ -729,14 +680,18 @@ int main(int argc, char **argv) {
 	}
 
 	/** ============= Inicializando valores ================ **/
+	yyin = fopen(argv[1], "r");                             /**/
+	assert(yyin);                                           /**/
+                                                            /**/
 	strncpy(filename, argv[1], FILENAMESIZE);               /**/
+	extern char *filename_lex;                              /**/
+	filename_lex = filename;                                /**/
 	root = create_node(filename);                           /**/
 	context = create_node(create_list());                   /**/
 	current_context = context;                              /**/
 	parents = create_list();                                /**/
 	int max = 0, *childrenCount = NULL;                     /**/
                                                             /**/
-	yyin = fopen(argv[1], "r");                             /**/
 	insert(0, root, parents);                               /**/
 	/** ==================================================== **/
 
@@ -765,7 +720,6 @@ int main(int argc, char **argv) {
 	delete_node(context);                                   /**/
                                                             /**/
 		/* Sublinha o nome do arquivo */                    /**/
-                                                            /**/
 	/* sprintf(              */                             /**/
 	/*  root->value,         */                             /**/
 	/*  "\033[4m%s\033[0m",  */                             /**/

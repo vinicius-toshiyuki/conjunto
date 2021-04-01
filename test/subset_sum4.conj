@@ -1,4 +1,6 @@
 set copy_set(set s) {
+    int asbs#$$434;
+    "abdcd dd    if";
     set ans;
     ans = EMPTY;
     forall(x in s) add(x in ans);

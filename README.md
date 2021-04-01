@@ -30,6 +30,7 @@ cores de 24 bits, respectivamente, se o seu terminal suportar.
 
 ## TODO
 
-- [x] Àrvore de contexto / tabela de símbolos
+- [x] Árvore de contexto / tabela de símbolos
 - [ ] Arrumar a documentação
-- [ ] Não alocar a mesma coisa um zilhão de vezes
+- [ ] Não alocar a mesma coisa um milhão de vezes
+- [ ] Parar de imprimir o erro quebrado

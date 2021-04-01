@@ -6,14 +6,17 @@
 #include <stdlib.h>
 #include "sintatico.h"
 #include "../include/tree.h"
+#include "../include/util.h"
 
 #define YY_USER_ACTION { \
-	if (strcmp(errormsg, "") && yy_act != lastrule) { \
+	if (strcmp(errormsg, "")) { \
 		if (errlnum == -1 && errlcol == -1) { \
 			errlnum = lnum; errlcol = lcol; \
 		} \
-		handleError(errormsg, errlnum, errlcol); \
-		errlnum = -1; errlcol = -1; \
+		if (yy_act != lastrule) { \
+			handleError(errormsg, filename_lex, errlnum, errlcol); \
+			errlnum = -1; errlcol = -1; \
+		} \
 	} \
 }
 #define YY_PREBREAK { \
@@ -35,11 +38,14 @@ void updatePosition(int *lnum, int *lcol) {
 		} else (*lcol)++;
 	}
 }
-void handleError(char *msg, int lnum, int lcol) {
-	extern char *yytext;
-	extern int yyleng;
-	fprintf(stderr, "\033[48;2;255;0;0m%s\033[0m\n", msg);
-	fprintf(stderr, "\033[48;2;255;0;0mError while processing line %d:%d\033[0m\n", lnum, lcol);
+void handleError(char *msg, char *filename, int lnum, int lcol) {
+	fprintf(stderr, ERR_LOCATION, filename, lnum, lcol);
+	fprintf(
+		stderr,
+		ERR_COLOR "  > Invalid character sequence: %s" PARSER_CLEARCOLOR "\n"
+		ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n",
+		msg
+		);
 	msg[0] = '\0';
 }
 %}
@@ -85,22 +91,25 @@ OPPOS ("++"|"--")
 W [ \t\n]+
 
 %x expect_string
-%x expect_string_end
 %x expect_char
 %x expect_char_end
+%x expect_err
 
-	char errormsg[512] = "";
-	int noupdate = -1;
+	char errormsg[512] = "", *filename_lex;
+	int noupdate = -1, reading_string = 0;
 	int lnum = 1, lcol = 0, lastrule = -1, errlnum = -1, errlcol = -1;
 
 %%
 
 	/* Consome espaços */
-<*>"/*"([^*]|"*"[^/])*"*/" /*  Consome comentários */
-<*>"//"[^\n]*              /*  Consome comentários */
-<*>{W}                     /*  Consome espaços     */
+<*>"/*"([^*]|"*"[^/])*"*/" /* Consome comentários */
+<*>"//"[^\n]*              /* Consome comentários */
+<*>{W} if (!reading_string) BEGIN(INITIAL); else yymore();
 
-[\(\){};,] RETURNUPDATE yytext[0];
+<INITIAL,expect_err>[\(\){};,] {
+	BEGIN(INITIAL);
+	RETURNUPDATE yytext[0];
+}
 
 if     RETURNUPDATE IF;
 else   RETURNUPDATE ELSE;
@@ -155,7 +164,7 @@ EMPTY RETURNUPDATE EMPTY;
 	yylval.node = create_node(val);
 	int ret;
 	switch (yytext[0]) {
-		case 'i': /* in */ /* TODO: Arrumar a precedencia */
+		case 'i': /* in */ /* TODO: Arrumar a precedência */
 			RETURNUPDATE IN;
 		case '*':
 		case '/':
@@ -213,21 +222,27 @@ EMPTY RETURNUPDATE EMPTY;
 	RETURNUPDATE ID;
 }
 
-\"/.*\" { BEGIN(expect_string); yymore(); }
-<expect_string>"\\\""   |
-<expect_string>{ESCAPE} |
-<expect_string>[^"\\]*  {
-	BEGIN(expect_string_end);
+\"/\("\\\""|{ESCAPE}|[^"\\]|{W}\)*\" {
+	BEGIN(expect_string);
+	reading_string = 1;
 	yymore();
 }
-<expect_string_end>\" {
+<expect_string>{W}      |
+<expect_string>"\\\""   |
+<expect_string>{ESCAPE} |
+<expect_string>[^"\\]   { yymore(); }
+<expect_string>\" {
 	BEGIN(INITIAL);
+	reading_string = 0;
 	char *val = strdup(yytext);
 	yylval.node = create_node(val);
 	RETURNUPDATE STRING;
 }
 
-' { BEGIN(expect_char); yymore(); }
+'/\("\\'"|{ESCAPE}|[^'\\]\)' {
+	BEGIN(expect_char);
+	yymore();
+}
 <expect_char>"\\'"    |
 <expect_char>{ESCAPE} |
 <expect_char>[^'\\]   {
@@ -242,6 +257,9 @@ EMPTY RETURNUPDATE EMPTY;
 }
 
 	/* Caractere não reconhecido -> Erro */
-<*>. sprintf(errormsg, "Unexpected character: %s", yytext);
+<*>. {
+	strcat(errormsg, yytext);
+	BEGIN(expect_err);
+}
 
 %%

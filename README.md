@@ -34,3 +34,5 @@ cores de 24 bits, respectivamente, se o seu terminal suportar.
 - [ ] Não alocar a mesma coisa um milhão de vezes
 - [ ] Parar de imprimir o erro quebrado
 - [x] Passas os negócios para o configure
+- [ ] Arrumar as referências
+- [ ] Arrumar a gramática

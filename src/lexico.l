@@ -171,9 +171,11 @@ EMPTY RETURNUPDATE EMPTY;
 		case '%':
 			RETURNUPDATE yytext[0];
 		case '+':
-		case '-': RETURNUPDATE yytext[0]; case '<':
+		case '-':
+			RETURNUPDATE yytext[0];
+		case '<':
 		case '>':
-			if (strcmp(yytext, "<<") > 0 && strcmp(yytext, ">>") > 1) {
+			if (strcmp(yytext, "<<") != 0 && strcmp(yytext, ">>") != 0) {
 				ret = OPBIN2;
 			} else {
 				ret = OPBIN1;

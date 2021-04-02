@@ -1,8 +1,9 @@
 #ifndef __UTIL_H__
 #define __UTIL_H__
 
+#include <config.h>
 /* ======== Definição de caracteres para impressão da árvore ===== */
-#ifdef PARSER_UNICODE_SUPPORT
+#ifdef WITH_UNICODE
 
 #define TREECHILDFIRST "┬"
 #define TREECHILDMID "├"
@@ -28,7 +29,7 @@
 
 /* ================== Definição de cores ======================== */
 #define PARSER_CLEARCOLOR "\033[0m"
-#ifdef PARSER_TRUE_COLOR_SUPPORT
+#ifdef WITH_TRUECOLOR
 
 #define TREEFADECOLOR "\033[38;2;170;170;170m"
 #define TREEACCENTCOLOR "\033[1m"

@@ -23,9 +23,8 @@ make
 ./src/parser test/subset_sum1.conj
 ```
 
-Podem ser passadas as macros `PARSER_UNICODE_SUPPORT` e
-`PARSER_TRUE_COLOR_SUPPORT` para o `make` com `CFLAGS="-D PARSER_XXX_SUPPORT"`
-para habilitar a impressão das árvores com caracteres Unicode e a impressão com
+O `./configure` aceita as opções `--with-unicode` e `--with-truecolor`
+que habilitam a impressão das árvores com caracteres Unicode e a impressão com
 cores de 24 bits, respectivamente, se o seu terminal suportar.
 
 ## TODO
@@ -34,3 +33,4 @@ cores de 24 bits, respectivamente, se o seu terminal suportar.
 - [ ] Arrumar a documentação
 - [ ] Não alocar a mesma coisa um milhão de vezes
 - [ ] Parar de imprimir o erro quebrado
+- [x] Passas os negócios para o configure

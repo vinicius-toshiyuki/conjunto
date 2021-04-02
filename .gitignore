@@ -23,6 +23,7 @@ docs/
 
 log
 .vim/
+.clangd
 
 # automake
 

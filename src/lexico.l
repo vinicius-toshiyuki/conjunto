@@ -5,8 +5,8 @@
 #include <assert.h>
 #include <stdlib.h>
 #include "sintatico.h"
-#include "../include/tree.h"
-#include "../include/util.h"
+#include <tree.h>
+#include <util.h>
 
 #define YY_USER_ACTION { \
 	if (strcmp(errormsg, "")) { \
@@ -227,7 +227,6 @@ EMPTY RETURNUPDATE EMPTY;
 	reading_string = 1;
 	yymore();
 }
-<expect_string>{W}      |
 <expect_string>"\\\""   |
 <expect_string>{ESCAPE} |
 <expect_string>[^"\\]   { yymore(); }

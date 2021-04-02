@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <assert.h>
-#include "../include/lexico.h"
-#include "../include/tree.h"
-#include "../include/util.h"
+#include <lexico.h>
+#include <tree.h>
+#include <util.h>
 
 #define NAMESIZE 32768
 #define FILENAMESIZE 512

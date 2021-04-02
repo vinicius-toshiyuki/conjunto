@@ -23,6 +23,35 @@ AC_CHECK_HEADERS(libintl.h limits.h locale.h malloc.h stddef.h wchar.h)
 
 AC_CHECK_TYPES(ptrdiff_t)
 
+AC_CONFIG_HEADERS([include/config.h])
+AC_ARG_WITH(
+	[unicode],
+	[AS_HELP_STRING(
+		[--with-unicode],
+		[support printing using unicode characters]
+	)],
+	[AC_DEFINE(
+		[WITH_UNICODE],
+		[1],
+		[Support printing using unicode characters]
+		)],
+	[]
+	)
+
+AC_ARG_WITH(
+	[truecolor],
+	[AS_HELP_STRING(
+		[--with-truecolor],
+		[support printing using 24 bit colors]
+	)],
+	[AC_DEFINE(
+		[WITH_TRUECOLOR],
+		[1],
+		[Support printing using 24 bit colors]
+		)],
+	[]
+	)
+
 AC_CONFIG_FILES([
 	Makefile
 	src/Makefile

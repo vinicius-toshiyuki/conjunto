@@ -11,7 +11,7 @@ include/lexico.h
 
 # Binaries
 
-/a.out
+a.out
 src/parser
 
 # Coisas do trabalho

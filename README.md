@@ -30,9 +30,11 @@ cores de 24 bits, respectivamente, se o seu terminal suportar.
 ## TODO
 
 - [x] Árvore de contexto / tabela de símbolos
-- [ ] Arrumar a documentação
+- [x] Arrumar a documentação
 - [ ] Não alocar a mesma coisa um milhão de vezes
-- [ ] Parar de imprimir o erro quebrado
+- [ ] Parar de imprimir o erro quebrado (configurar no léxico?)
+- [ ] Usar yyerror() no léxico também
+- [ ] Mudar o YYLTYPE
 - [x] Passas os negócios para o configure
-- [ ] Arrumar as referências
-- [ ] Arrumar a gramática
+- [x] Arrumar as referências
+- [x] Arrumar a gramática

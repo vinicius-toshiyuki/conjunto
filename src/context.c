@@ -90,7 +90,7 @@ const char *type_string(int type) {
   case CTX_VAR:
     return "variable";
   default:
-    fprintf(stderr, "Invalid type id in type_string(): %d\n", type);
+    fprintf(stderr, "Invalid type code in type_string(): %d\n", type);
     exit(EXIT_FAILURE);
   }
 }
@@ -108,7 +108,35 @@ const char *data_type_string(int type) {
   case CTX_SET:
     return "set";
   default:
-    fprintf(stderr, "Invalid type id in data_type_string(): %d\n", type);
+    fprintf(stderr, "Invalid type code in data_type_string(): %d\n", type);
+    exit(EXIT_FAILURE);
+  }
+}
+
+const int type_code(const char *type) {
+  if (strcmp(type, "variable") == 0) {
+    return CTX_VAR;
+  } else if (strcmp(type, "function") == 0) {
+    return CTX_FUN;
+  } else {
+    fprintf(stderr, "Invalid type string in type_code(): %s\n", type);
+    exit(EXIT_FAILURE);
+  }
+}
+
+const int data_type_code(const char *type) {
+  if (strcmp(type, "int") == 0) {
+    return CTX_INT;
+  } else if (strcmp(type, "float") == 0) {
+    return CTX_FLOAT;
+  } else if (strcmp(type, "char") == 0) {
+    return CTX_CHAR;
+  } else if (strcmp(type, "elem") == 0) {
+    return CTX_ELEM;
+  } else if (strcmp(type, "set") == 0) {
+    return CTX_SET;
+  } else {
+    fprintf(stderr, "Invalid type string in data_type_code(): %s\n", type);
     exit(EXIT_FAILURE);
   }
 }

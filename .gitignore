@@ -6,6 +6,7 @@ src/*.o
 # Generated sources/headers
 
 src/sintatico.c
+src/sintatico.output
 src/lexico.c
 include/lexico.h
 

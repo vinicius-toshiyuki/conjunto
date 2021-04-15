@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 112 "sintatico.y"
+#line 133 "sintatico.y"
 
 #include <tree.h>
 #include <context.h>
@@ -124,7 +124,7 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 117 "sintatico.y"
+#line 138 "sintatico.y"
 
 	char name[32768];
 	node_t node;

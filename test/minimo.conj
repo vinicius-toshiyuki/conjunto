@@ -1,5 +1,6 @@
 set copy_set(set s) {
     set ans;
+	elem x;
     { int a; }
     forall(x in s) add(x in ans);
     return ans;

@@ -12,6 +12,7 @@ enum { CTX_VAR = 0, CTX_FUN };
 
 /**
  * Tipos primitivos dos valores dos símbolos.
+ * TODO: CTX_INEXP
  */
 enum { CTX_INT = 0, CTX_FLOAT, CTX_CHAR, CTX_ELEM, CTX_SET };
 
@@ -40,6 +41,8 @@ typedef struct ctx_variable {
 /**
  * Um símbolo de função.
  * Herda de CTX_id_t.
+ * TODO: permitir lista de lista de parâmetros (overload)
+ * TODO: (depooooois) permitir diferentes retornos (unificar com os parâmetros)
  */
 typedef struct ctx_function {
   int type;
@@ -89,6 +92,7 @@ CTX_sym_t lookup_symbol(char *id, node_t ctx);
 
 /**
  * Checa se o contexto `local_ctx` tem o símbolo com nome `id`.
+ * Retorna 0 se houver.
  */
 int has_symbol(char *id, list_t local_ctx);
 
@@ -105,8 +109,18 @@ void __cast_int_to_float(CTX_sym_t sym);
 const char *type_string(int type);
 
 /**
+ * Retorna o código do tipo de símbolo `type`.
+ */
+const int type_code(const char *type);
+
+/**
  * Retorna uma string que representa o tipo de dados `type`.
  */
 const char *data_type_string(int type);
+
+/**
+ * Retorna o código do tipo de dados `type`.
+ */
+const int data_type_code(const char *type);
 
 #endif

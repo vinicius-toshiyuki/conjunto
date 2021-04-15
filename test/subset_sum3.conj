@@ -42,6 +42,7 @@ int main() {
     int acc; float accf;
     acc = 0.s; accf = 0;
     elem x;
+    elem x;
     
     forall(if(i > 2)) {
         acc = acc + x; // when x is {1,2} the behaviour is undefined; this may raise an exception at runtime
@@ -54,6 +55,7 @@ int main() {
         if (!is_set(x)) {
            acc = acc + x;
 		   1 + 2 * 3;
+		   a = b + c;
        accf = accf + x;
     }   
     }

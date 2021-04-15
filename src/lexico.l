@@ -8,22 +8,29 @@
 #include <tree.h>
 #include <util.h>
 
-#define YY_USER_ACTION { \
-	if (strcmp(errormsg, "")) { \
-		if (errlnum == -1 && errlcol == -1) { \
-			errlnum = lnum; errlcol = lcol; \
-		} \
-		if (yy_act != lastrule) { \
-			handleError(errormsg, filename_lex, errlnum, errlcol); \
-			errlnum = -1; errlcol = -1; \
-		} \
-	} \
+#define YY_USER_ACTION {                                              \
+	if (strcmp(errormsg, "")) {                                       \
+		if (errlnum == -1 && errlcol == -1) {                         \
+			errlnum = lnum; errlcol = lcol;                           \
+		}                                                             \
+		if (yy_act != lastrule) {                                     \
+			extern list_t err_loc;                                    \
+			err_loc_t *loc = (err_loc_t *) malloc(sizeof(err_loc_t)); \
+			loc->errlnum = lnum;                                      \
+			loc->errlcol = lcol;                                      \
+			prepend(loc, err_loc);                                    \
+			char *filename = filename_lex;                            \
+			HANDLE_ERROR(errormsg);                                   \
+			errormsg[0] = '\0';                                       \
+			errlnum = -1; errlcol = -1;                               \
+		}                                                             \
+	}                                                                 \
 }
-#define YY_PREBREAK { \
-	if (noupdate != yy_act) { \
-		lastrule = yy_act; \
+#define YY_PREBREAK {                 \
+	if (noupdate != yy_act) {         \
+		lastrule = yy_act;            \
 		updatePosition(&lnum, &lcol); \
-	} \
+	}                                 \
 }
 #define YY_BREAK YY_PREBREAK break;
 #define RETURNUPDATE YY_PREBREAK return
@@ -37,16 +44,6 @@ void updatePosition(int *lnum, int *lcol) {
 			*lcol = 0;
 		} else (*lcol)++;
 	}
-}
-void handleError(char *msg, char *filename, int lnum, int lcol) {
-	fprintf(stderr, ERR_LOCATION, filename, lnum, lcol);
-	fprintf(
-		stderr,
-		ERR_COLOR "  > Invalid character sequence: %s" PARSER_CLEARCOLOR "\n"
-		ERR_COLOR ERR_SEPARATOR PARSER_CLEARCOLOR "\n",
-		msg
-		);
-	msg[0] = '\0';
 }
 %}
 
@@ -122,7 +119,7 @@ EMPTY RETURNUPDATE EMPTY;
 
 {TYPE} {
 	char *type = strdup(yytext);
-	yylval.node = create_node(strdup("<type>"));
+	yylval.node = create_node(TOK_TYPE);
 	add_child(create_node(type), yylval.node);
 	RETURNUPDATE TYPE;
 }
@@ -219,7 +216,7 @@ EMPTY RETURNUPDATE EMPTY;
 
 {ID} {
 	char *id = strdup(yytext);
-	yylval.node = create_node(strdup("<id>"));
+	yylval.node = create_node(strdup(TOK_ID));
 	add_child(create_node(id), yylval.node);
 	RETURNUPDATE ID;
 }
@@ -259,6 +256,9 @@ EMPTY RETURNUPDATE EMPTY;
 
 	/* Caractere não reconhecido -> Erro */
 <*>. {
+	if (*errormsg == '\0') {
+		strcat(errormsg, "Invalid character sequence: ");
+	}
 	strcat(errormsg, yytext);
 	BEGIN(expect_err);
 }

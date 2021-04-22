@@ -20,6 +20,7 @@ src/parser
 entrega/
 docs/
 *.zip
+src/main.c
 
 # Outros
 

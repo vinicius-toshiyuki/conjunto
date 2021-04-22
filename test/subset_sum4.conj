@@ -3,6 +3,7 @@ set copy_set(set s) {
     "abdcd dd    if";
     set ans;
     ans = EMPTY;
+	elem x;
     forall(x in s) add(x in ans);
     return ans;
 }
@@ -17,7 +18,7 @@ int main()
     set zero, set one; set two; set three;
    
     zero = EMPTY
-    one = succ(zero);
-    two = succ(one);
-    three = succ(two);
+    one = succset(zero);
+    two = succset(one);
+    three = succset(two);
 }

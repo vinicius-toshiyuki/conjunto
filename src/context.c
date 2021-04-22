@@ -9,6 +9,7 @@ CTX_sym_t create_symbol(int type, char *id, int data_type) {
   switch (type) {
   case CTX_VAR:
     sym = malloc(sizeof(struct ctx_variable));
+    CTX_VAR(sym)->secondary_data_type = CTX_UNK;
     CTX_VAR(sym)->value = NULL;
     CTX_VAR(sym)->depth = 0;
     CTX_VAR(sym)->length = NULL;
@@ -36,10 +37,6 @@ void delete_symbol(CTX_sym_t sym) {
     break;
   case CTX_FUN:
     if (CTX_FUN(sym)->params != NULL) {
-      elem_t it = CTX_FUN(sym)->params->first;
-      for (; it != NULL; it = it->next) {
-        delete_symbol(it->value);
-      }
       delete_list(CTX_FUN(sym)->params);
     }
     break;
@@ -107,6 +104,10 @@ const char *data_type_string(int type) {
     return "elem";
   case CTX_SET:
     return "set";
+  case CTX_INEXP:
+    return "in-expression";
+  case CTX_UNK:
+    return "unknown";
   default:
     fprintf(stderr, "Invalid type code in data_type_string(): %d\n", type);
     exit(EXIT_FAILURE);
@@ -135,8 +136,16 @@ const int data_type_code(const char *type) {
     return CTX_ELEM;
   } else if (strcmp(type, "set") == 0) {
     return CTX_SET;
+  } else if (strcmp(type, "in-expression") == 0) {
+    return CTX_INEXP;
+  } else if (strcmp(type, "unknown") == 0) {
+    return CTX_UNK;
   } else {
     fprintf(stderr, "Invalid type string in data_type_code(): %s\n", type);
     exit(EXIT_FAILURE);
   }
+}
+
+int compare_symbol(void *a, void *b) {
+  return strcmp(CTX_SYM(a)->id, CTX_SYM(b)->id);
 }

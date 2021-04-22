@@ -38,6 +38,14 @@ int main() {
       },
       list);
 
+  iter_t iter = ITERATOR(list, ITER_DOWN);
+  printf("===========\n");
+  int aa = 0;
+  while (ITER_HAS(iter)) {
+    printf("%d\n", *ITER(iter, int *, 0));
+  }
+  printf("===========\n");
+
   list_t list2 = map(idx_mul, list);
 
   for (it = list2->first; it != NULL; it = it->next) {

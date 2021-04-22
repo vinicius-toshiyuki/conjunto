@@ -45,12 +45,15 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 133 "sintatico.y"
+#line 135 "sintatico.y"
 
 #include <tree.h>
 #include <context.h>
+#include <syntatic_node.h>
+#include <eval.h>
+#include <set.h>
 
-#line 54 "sintatico.h"
+#line 57 "sintatico.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -124,12 +127,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 138 "sintatico.y"
+#line 144 "sintatico.y"
 
-	char name[32768];
 	node_t node;
 
-#line 133 "sintatico.h"
+#line 135 "sintatico.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

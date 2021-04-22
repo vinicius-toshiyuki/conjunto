@@ -1,7 +1,13 @@
-set copy_set(set s) {
+set copy_set(set s, int argumento2) {
+	int a;
+	EMPTY; 1; 2.; '\x63'; "te\x000041\00000145ste";
     set ans;
+	copy_set(copy_set(ans, 3.0), "oi");
+    { int a; a = 000100;}
 	elem x;
-    { int a; }
+	write(x in s);
+	x = 4;
+	EMPTY ? 2 : x;
     forall(x in s) add(x in ans);
     return ans;
 }

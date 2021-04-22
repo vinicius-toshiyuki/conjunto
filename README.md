@@ -42,4 +42,7 @@ deve receber o nome de um arquivo para ser usado como entrada.
 - [x] Passas os negócios para o configure
 - [x] Arrumar as referências
 - [x] Arrumar a gramática
-- [ ] Avaiar uma expressão (tipo, depois valor?)
+- [x] Avaliar uma expressão (tipo, depois valor?)
+- [ ] Parar de criar tags no léxico
+- [x] Para de usar o yyerror()
+- [ ] tratar in-expression

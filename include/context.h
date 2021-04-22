@@ -7,14 +7,22 @@
 /**
  * Tipos de símbolos.
  * TODO: adicionar constantes?
+ * TODO: conflita com as macros de cast?
  */
 enum { CTX_VAR = 0, CTX_FUN };
 
 /**
  * Tipos primitivos dos valores dos símbolos.
- * TODO: CTX_INEXP
  */
-enum { CTX_INT = 0, CTX_FLOAT, CTX_CHAR, CTX_ELEM, CTX_SET };
+enum {
+  CTX_UNK = -1,
+  CTX_INT = 0,
+  CTX_FLOAT,
+  CTX_CHAR,
+  CTX_ELEM,
+  CTX_SET,
+  CTX_INEXP
+};
 
 /**
  * Um símbolo da tabela de símbolos.
@@ -33,9 +41,10 @@ typedef struct ctx_variable {
   int type;
   char *id;
   int data_type;
-  void *value; /* Valor da variável (pode ser NULL)         */
-  int depth;   /* Número de dimensões (> 0 é ponteiro)      */
-  int *length; /* Tamanho de cada dimensão (se `depth` > 0) */
+  int secondary_data_type; /* Tipo secundário da variável polimórfica   */
+  void *value;             /* Valor da variável (pode ser NULL)         */
+  int depth;               /* Número de dimensões (> 0 é ponteiro)      */
+  int *length;             /* Tamanho de cada dimensão (se `depth` > 0) */
 } * CTX_var_t;
 
 /**
@@ -48,19 +57,19 @@ typedef struct ctx_function {
   int type;
   char *id;
   int data_type;
-  list_t params; /* Símbolos dos parâmetros  */
+  list_t params; /* Símbolos dos parâmetros */
 } * CTX_fun_t;
 
 /**
- * Faz o cast de um ponteiro para (CTX_sym_t)
+ * Faz o cast de um ponteiro para (CTX_sym_t).
  */
 #define CTX_SYM(CTX_pointer) ((CTX_sym_t)CTX_pointer)
 /**
- * Faz o cast de um símbolo para (CTX_var_t)
+ * Faz o cast de um símbolo para (CTX_var_t).
  */
 #define CTX_VAR(CTX_sym) ((CTX_var_t)CTX_sym)
 /**
- * Faz o cast de um símbolo para (CTX_fun_t)
+ * Faz o cast de um símbolo para (CTX_fun_t).
  */
 #define CTX_FUN(CTX_sym) ((CTX_fun_t)CTX_sym)
 
@@ -122,5 +131,11 @@ const char *data_type_string(int type);
  * Retorna o código do tipo de dados `type`.
  */
 const int data_type_code(const char *type);
+
+/**
+ * Compara dois símbolos pelo nome.
+ * Usado como `comparator` para um set.
+ */
+int compare_symbol(void *a, void *b);
 
 #endif

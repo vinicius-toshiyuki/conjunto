@@ -15,60 +15,59 @@
 #include <tree.h>
 #include <util.h>
 
-#define NAMESIZE 32768
-#define FILENAMESIZE 512
-
 /* ========================= Macros ============================= */
 #define FIRSTCHILD_VALUE(NODE) \
-	((char *) ((node_t) NODE->children->first->value)->value)
+	((char *) ((node_t) ((node_t)NODE)->children->first->value)->value)
 
-#define ADD_BIN_EXP(RES, EXP1, OP, EXP2) { \
-	node_t exp = create_node(TOK_EXP);     \
-	node_t op = create_node(TOK_OPBIN);    \
-	add_child(OP, op);                     \
-	add_child(EXP1, exp);                  \
-	add_child(op, exp);                    \
-	add_child(EXP2, exp);                  \
-	RES = exp;                             \
+#define ADD_BIN_EXP(RES, EXP1, OP, EXP2) {                           \
+	node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP)); \
+	node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPBIN));     \
+	add_child(OP, op);                                               \
+	add_child(EXP1, exp);                                            \
+	add_child(op, exp);                                              \
+	add_child(EXP2, exp);                                            \
+	eval_exp_type(exp);                                              \
+	RES = exp;                                                       \
 }
 
-#define ADD_BIN_EXP_ERR(RES, EXP1, OP) {   \
-	node_t exp = create_node(TOK_EXP);     \
-	node_t op = create_node(TOK_OPBIN);    \
-	add_child(OP, op);                     \
-	add_child(EXP1, exp);                  \
-	add_child(op, exp);                    \
-	node_t err = create_node(ERR_TOKEN);   \
-	add_child(err, exp);                   \
-	RES = exp;                             \
-	ssprintf(                              \
-		syn_errormsg,                      \
-		"Expected expression before '%s'", \
-		OP->value                          \
-		);                                 \
-	HANDLE_ERROR(syn_errormsg);            \
+#define ADD_BIN_EXP_ERR(RES, EXP1, OP) {                             \
+	node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP)); \
+	node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPBIN));     \
+	add_child(OP, op);                                               \
+	add_child(EXP1, exp);                                            \
+	add_child(op, exp);                                              \
+	node_t err = create_node(create_syn_val(SYN_TAG, ERR_TOKEN));    \
+	add_child(err, exp);                                             \
+	RES = exp;                                                       \
+	ssprintf(                                                        \
+		syn_errormsg,                                                \
+		"Expected expression before '%s'",                           \
+		SYN_OP(OP->value)->name                                      \
+		);                                                           \
+	HANDLE_ERROR(syn_errormsg);                                      \
 }
 
-#define ADD_UNI_EXP(RES, OP, EXP1) {    \
-	node_t exp = create_node(TOK_EXP);  \
-	node_t op = create_node(TOK_OPUNI); \
-	add_child(OP, op);                  \
-	add_child(op, exp);                 \
-	add_child(EXP1, exp);               \
-	RES = exp;                          \
+#define ADD_UNI_EXP(RES, OP, EXP1) {                                 \
+	node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP)); \
+	node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPUNI));     \
+	add_child(OP, op);                                               \
+	add_child(op, exp);                                              \
+	add_child(EXP1, exp);                                            \
+	eval_exp_type(exp);                                              \
+	RES = exp;                                                       \
 }
 
-#define UNDEF_ID_ERR(ID) { \
-	CTX_sym_t sym = lookup_symbol(ID, current_context); \
-	if (sym == NULL) { \
-		yyerror(NULL, NULL, NULL); \
-		ssprintf( \
-			syn_errormsg, \
-			"Undefined identifier \"%s\"", \
-			ID \
-			); \
-		HANDLE_ERROR(syn_errormsg); \
-	} \
+#define UNDEF_ID_ERR(ID) {                                             \
+	CTX_sym_t sym = lookup_symbol(SYN_EXP(ID)->name, current_context); \
+	if (sym == NULL) {                                                 \
+		yyerror(NULL, NULL, NULL);                                     \
+		ssprintf(                                                      \
+			syn_errormsg,                                              \
+			"Undefined identifier \"%s\"",                             \
+			SYN_EXP(ID)->name                                          \
+			);                                                         \
+		HANDLE_ERROR(syn_errormsg);                                    \
+	}                                                                  \
 }
 
 #define PUSH_CONTEXT {                            \
@@ -80,16 +79,18 @@
 #define POP_CONTEXT \
 	current_context = current_context->parent;
 
-#define ADD_CONTEXT(SYM_TYPE, ID_CONTEXT, TYPE_CONTEXT) {               \
-	if (has_symbol(ID_CONTEXT, current_context->value) != 0) {          \
-		int ENTRYTYPE = data_type_code(TYPE_CONTEXT);                   \
-		CTX_sym_t SYM = create_symbol(SYM_TYPE, ID_CONTEXT, ENTRYTYPE); \
-		append(SYM, current_context->value);                            \
-	} else {                                                            \
-		yyerror(NULL, NULL, NULL); \
-		ssprintf(syn_errormsg, "Redeclaration of \"%s\"", ID_CONTEXT); \
-		HANDLE_ERROR(syn_errormsg); \
-	}                                                                   \
+#define ADD_CONTEXT(SYM_TYPE, ID_CONTEXT, TYPE_CONTEXT) {            \
+	char *TYPE_NAME = TYPE_CONTEXT;                                  \
+	char *ID_NAME = ID_CONTEXT;                                      \
+	if (has_symbol(ID_NAME, current_context->value) != 0) {          \
+		int ENTRYTYPE = data_type_code(TYPE_NAME);                   \
+		CTX_sym_t SYM = create_symbol(SYM_TYPE, ID_NAME, ENTRYTYPE); \
+		append(SYM, current_context->value);                         \
+	} else {                                                         \
+		yyerror(NULL, NULL, NULL);                                   \
+		ssprintf(syn_errormsg, "Redeclaration of \"%s\"", ID_NAME);  \
+		HANDLE_ERROR(syn_errormsg);                                  \
+	}                                                                \
 }
 
 /* ============================================================== */
@@ -105,14 +106,15 @@ typedef struct {
 int yyerror(int *max, int *children_count, char *s);
 int yylex();
 
-void ssprintf(char *target, char *template, ...); /* É a mesma coisa do sprintf()                 */
-void print(node_t node, void *data);              /* Imprime um nó de uma árvore                  */
-void print_syntatic(node_t value);                /* Imprime o valor de um nó da árvore sintática */
-void print_context(node_t value);                 /* Imprime o valor de um nó do contexto         */
-void max_level(node_t node, void *data);          /* Obtém a profundidade de uma árvore           */
-void free_values(node_t node, void *data);        /* Libera a memória do valor de um nó           */
-void free_context(node_t node, void *data);       /* Libera a memória de um context               */
-void init_context(node_t node);                   /* Inicia o contexto com funções integradas */
+void ssprintf(char *target, char *template, ...);   /* É a mesma coisa do sprintf()                 */
+void print(node_t node, void *data);                /* Imprime um nó de uma árvore                  */
+void print_syntatic(node_t value);                  /* Imprime o valor de um nó da árvore sintática */
+void print_context(node_t value);                   /* Imprime o valor de um nó do contexto         */
+void max_level(node_t node, void *data);            /* Obtém a profundidade de uma árvore           */
+void create_context_table(node_t node, void *data); /* Popula um set com os símbolos do contexto    */
+void free_values(node_t node, void *data);          /* Libera a memória do valor de um nó           */
+void free_context(node_t node, void *data);         /* Libera a memória de um context               */
+void init_context(node_t node);                     /* Inicia o contexto com funções integradas     */
 
 extern int lnum, lcol; /* Vêm do lexico.l */
 
@@ -133,10 +135,13 @@ node_t context; /* Árvore de contextos */
 %code requires {
 #include <tree.h>
 #include <context.h>
+#include <syntatic_node.h>
+#include <eval.h>
+#include <set.h>
 }
 
+// %define api.value.type { node_t }
 %union {
-	char name[32768];
 	node_t node;
 }
 
@@ -193,32 +198,32 @@ declarations: %empty
 
 cmd: IF '(' exp ')' cmd %prec IF
 		{
-			$$ = create_node(TOK_IF);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_IF));
 			add_child($3, $$);
 			add_child($5, $$);
 		}
 	| IF '(' exp ')' cmd ELSE cmd %prec ELSE
 		{
-			$$ = create_node(TOK_IF_ELSE);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_IF_ELSE));
 			add_child($3, $$);
 			add_child($5, $$);
 			add_child($7, $$);
 		}
 	| WHILE '(' exp ')' cmd
 		{
-			$$ = create_node(TOK_WHILE);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_WHILE));
 			add_child($3, $$);
 			add_child($5, $$);
 		}
 	| FORALL '(' exp ')' cmd
 		{
-			$$ = create_node(TOK_FORALL);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_FORALL));
 			add_child($3, $$);
 			add_child($5, $$);
 		}
 	| FOR
 		{
-			$<node>$ = create_node(TOK_FOR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_FOR));
 			insert(0, $<node>$, parents);
 		} '(' forargs ')' {
 			removeAt(0, parents);
@@ -229,11 +234,11 @@ cmd: IF '(' exp ')' cmd %prec IF
 	| exp ';' { $$ = $1; }
 	| RETURN exp ';'
 		{
-			add_child($2, ($$ = create_node(TOK_RETURN)));
+			add_child($2, ($$ = create_node(create_syn_val(SYN_TAG, TOK_RETURN))));
 		}
 	|
 		{
-			insert(0, create_node(TOK_BLOCK), parents);
+			insert(0, create_node(create_syn_val(SYN_TAG, TOK_BLOCK)), parents);
 			PUSH_CONTEXT;
 		} '{' cmds '}' {
 			POP_CONTEXT;
@@ -242,43 +247,43 @@ cmd: IF '(' exp ')' cmd %prec IF
 		}
 	| ';'
 		{
-			$$ = create_node(TOK_EMPTYCMD);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_EMPTYCMD));
 		}
 	| declaration
 	/* Erros */
 	| IF '(' error ')' cmd %prec IF
 		{
-			$$ = create_node(TOK_IF);
-			add_child(create_node(ERR_TOKEN), $$);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_IF));
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $$);
 			add_child($5, $$);
 			HANDLE_ERROR("Expected condition in 'if' statement");
 		}
 	| IF '(' error ')' cmd ELSE cmd %prec ELSE
 		{
-			$$ = create_node(TOK_IF_ELSE);
-			add_child(create_node(ERR_TOKEN), $$);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_IF_ELSE));
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $$);
 			add_child($5, $$);
 			add_child($7, $$);
 			HANDLE_ERROR("Expected condition in 'if-else' statement");
 		}
 	| WHILE '(' error ')' cmd
 		{
-			$$ = create_node(TOK_WHILE);
-			add_child(create_node(ERR_TOKEN), $$);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_WHILE));
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $$);
 			add_child($5, $$);
 			HANDLE_ERROR("Expected condition in 'while' statement");
 		}
 	| FORALL '(' error ')' cmd
 		{
-			$$ = create_node(TOK_FORALL);
-			add_child(create_node(ERR_TOKEN), $$);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_FORALL));
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $$);
 			add_child($5, $$);
 			HANDLE_ERROR("Expected in-expression in 'forall' statement");
 		}
 	| RETURN error ';'
 		{
-			$$ = create_node(TOK_RETURN);
-			add_child(create_node(ERR_TOKEN), $$);
+			$$ = create_node(create_syn_val(SYN_TAG, TOK_RETURN));
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $$);
 			HANDLE_ERROR("Expected return expression");
 		}
 	;
@@ -299,10 +304,10 @@ cmdstail: %empty
 
 declaration: TYPE ID
 		{
-			$<node>$ = create_node(TOK_DECLR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($1, $<node>$);
 			add_child($2, $<node>$);
-			ADD_CONTEXT(CTX_VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+			ADD_CONTEXT(CTX_VAR, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
 			insert(0, $<node>$, parents);
 		} idlist ';' {
 			$$ = $<node>3;
@@ -310,13 +315,13 @@ declaration: TYPE ID
 		}
 	| TYPE ID '('
 		{
-			$<node>$ = create_node(strdup("<declr_fn>"));
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR_FN));
 			add_child($1, $<node>$);
 			add_child($2, $<node>$);
-			ADD_CONTEXT(CTX_FUN, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+			ADD_CONTEXT(CTX_FUN, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
 			PUSH_CONTEXT;
 
-			node_t pars = create_node(TOK_PARLIST);
+			node_t pars = create_node(create_syn_val(SYN_TAG, TOK_PARLIST));
 			add_child(pars, $<node>$);
 			insert(0, pars, parents); /* É removido dentro de declr_fntail */
 		} declr_fntail {
@@ -326,9 +331,9 @@ declaration: TYPE ID
 	/* Erros */
 	| TYPE idlist
 		{
-			$<node>$ = create_node(TOK_DECLR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($1, $<node>$);
-			add_child(create_node(ERR_TOKEN), $<node>$);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $<node>$);
 			insert(0, $<node>$, parents);
 		} ';' {
 			removeAt(0, parents);
@@ -338,24 +343,24 @@ declaration: TYPE ID
 			ssprintf(
 				syn_errormsg,
 				"Expected identifier of type '%s'",
-				FIRSTCHILD_VALUE($1)
+				SYN_TYPE(FIRSTCHILD_VALUE($1))->name
 			);
 			HANDLE_ERROR(syn_errormsg);
 		}
 	| TYPE
 		{
-			$<node>$ = create_node(strdup("<declr_fn>"));
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR_FN));
 			add_child($1, $<node>$);
-			add_child(create_node(ERR_TOKEN), $<node>$);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), $<node>$);
 
-			node_t pars = create_node(TOK_PARLIST);
+			node_t pars = create_node(create_syn_val(SYN_TAG, TOK_PARLIST));
 			add_child(pars, $<node>$);
 			insert(0, pars, parents);
 			PUSH_CONTEXT;
 		} '(' parlist ')' {
 			removeAt(0, parents);
 			$<node>$ = $<node>2;
-			node_t block = create_node(TOK_BLOCK);
+			node_t block = create_node(create_syn_val(SYN_TAG, TOK_BLOCK));
 			add_child(block, $<node>$);
 			insert(0, block, parents);
 		} '{' cmds '}' {
@@ -367,7 +372,7 @@ declaration: TYPE ID
 			ssprintf(
 				syn_errormsg,
 				"Expected identifier of type '%s' in function declaration",
-				$1->value
+				SYN_TYPE($1->value)->name
 				);
 			HANDLE_ERROR(syn_errormsg);
 		}
@@ -375,7 +380,7 @@ declaration: TYPE ID
 
 declr_fntail: parlist ')' '{'
 		{
-			node_t block = create_node(TOK_BLOCK);
+			node_t block = create_node(create_syn_val(SYN_TAG, TOK_BLOCK));
 			add_child(block, ((node_t) parents->first->value)->parent);
 			removeAt(0, parents); /* Inserido no que vem antes */
 			insert(0, block, parents);
@@ -385,10 +390,10 @@ declr_fntail: parlist ')' '{'
 	/* Erros */
 	| error '{'
 		{
-			node_t block = create_node(TOK_BLOCK);
+			node_t block = create_node(create_syn_val(SYN_TAG, TOK_BLOCK));
 			add_child(block, ((node_t) parents->first->value)->parent);
 
-			add_child(create_node(ERR_TOKEN), parents->first->value);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), parents->first->value);
 
 			removeAt(0, parents); /* Inserido no que vem antes */
 			insert(0, block, parents);
@@ -398,8 +403,8 @@ declr_fntail: parlist ')' '{'
 		}
 	| parlist ')' error ';'
 		{
-			node_t err = create_node(ERR_TOKEN);
-			node_t block = create_node(TOK_BLOCK);
+			node_t err = create_node(create_syn_val(SYN_TAG, ERR_TOKEN));
+			node_t block = create_node(create_syn_val(SYN_TAG, TOK_BLOCK));
 			add_child(err, block);
 			add_child(block, ((node_t) parents->first->value)->parent);
 
@@ -414,29 +419,44 @@ declr_fntail: parlist ')' '{'
 parlist: %empty
 	| TYPE ID
 		{
-			$<node>$ = create_node(TOK_DECLR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($1, $<node>$);
 			add_child($2, $<node>$);
-			ADD_CONTEXT(CTX_VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+			ADD_CONTEXT(CTX_VAR, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
+
+			char *fun_name = SYN_VALUE(
+				FIRSTCHILD_VALUE(
+				((node_t)(parents->first->value))->parent->children->first->next->value)
+				)->name;
+			CTX_sym_t fun = lookup_symbol(fun_name, current_context);
+
+			CTX_sym_t par = lookup_symbol(SYN_EXP(FIRSTCHILD_VALUE($2))->name, current_context);
+			if (par != NULL && fun != NULL) {
+				if (CTX_FUN(fun)->params == NULL) {
+					CTX_FUN(fun)->params = create_list();
+				}
+				append(par, CTX_FUN(fun)->params);
+			}
+
 			add_child($<node>$, parents->first->value);
 		} partail
 	/* Erros */
 	| ID
 		{ /* Missing type */
-			add_child(create_node(ERR_TOKEN), parents->first->value);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), parents->first->value);
 			add_child($1, parents->first->value);
 			YYERROR;
 		} partail error {
-			ssprintf(syn_errormsg, "Expected a type for '%s'", FIRSTCHILD_VALUE($1));
+			ssprintf(syn_errormsg, "Expected a type for '%s'", SYN_EXP(FIRSTCHILD_VALUE($1))->name);
 			HANDLE_ERROR(syn_errormsg);
 		}
 	| TYPE
 		{ /* Missing id */
 			add_child($1, parents->first->value);
-			add_child(create_node(ERR_TOKEN), parents->first->value);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), parents->first->value);
 			YYERROR;
 		} partail error {
-			ssprintf(syn_errormsg, "Expected an identifier of type '%s'", FIRSTCHILD_VALUE($1));
+			ssprintf(syn_errormsg, "Expected an identifier of type '%s'", SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
 			HANDLE_ERROR(syn_errormsg);
 		}
 	;
@@ -444,19 +464,31 @@ parlist: %empty
 partail: %empty
 	| ',' TYPE ID partail
 		{
-			$<node>$ = create_node(TOK_DECLR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($2, $<node>$);
 			add_child($3, $<node>$);
-			ADD_CONTEXT(CTX_VAR, FIRSTCHILD_VALUE($3), FIRSTCHILD_VALUE($2));
+			ADD_CONTEXT(CTX_VAR, SYN_EXP(FIRSTCHILD_VALUE($3))->name, SYN_TYPE(FIRSTCHILD_VALUE($2))->name);
+
+			char *fun_name = SYN_VALUE(FIRSTCHILD_VALUE(((node_t)(parents->first->value))->parent->children->first->next->value))->name;
+			CTX_sym_t fun = lookup_symbol(fun_name, current_context);
+
+			CTX_sym_t par = lookup_symbol(SYN_EXP(FIRSTCHILD_VALUE($3))->name, current_context);
+			if (par != NULL && fun != NULL) {
+				if (CTX_FUN(fun)->params == NULL) {
+					CTX_FUN(fun)->params = create_list();
+				}
+				append(par, CTX_FUN(fun)->params);
+			}
+
 			add_child($<node>$, parents->first->value);
 		}
 	/* Erros */
 	| TYPE ID partail
 		{
-			$<node>$ = create_node(TOK_DECLR);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($1, $<node>$);
 			add_child($2, $<node>$);
-			ADD_CONTEXT(CTX_VAR, FIRSTCHILD_VALUE($2), FIRSTCHILD_VALUE($1));
+			ADD_CONTEXT(CTX_VAR, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
 			add_child($<node>$, parents->first->value);
 			HANDLE_ERROR("Expected a ','");
 		}
@@ -464,7 +496,7 @@ partail: %empty
 
 forargs: TYPE ID '=' exp
 		{
-			node_t arg = create_node(strdup("<declr_init>"));
+			node_t arg = create_node(create_syn_val(SYN_TAG, TOK_DECLR_INIT));
 			add_child($1, arg);
 			add_child($2, arg);
 			add_child($4, arg);
@@ -476,7 +508,7 @@ forargs: TYPE ID '=' exp
 		} fortail fortail
 	| TYPE ID
 		{
-			node_t arg = create_node(TOK_DECLR);
+			node_t arg = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($1, arg);
 			add_child($2, arg);
 
@@ -491,7 +523,7 @@ forargs: TYPE ID '=' exp
 		} fortail fortail
 	| fortail fortail
 		{
-			node_t exp = create_node(TOK_EMPTYEXP);
+			node_t exp = create_node(create_syn_val(SYN_TAG, TOK_EMPTYEXP));
 			exp->parent = parents->first->value;
 			insert(0, exp, parents->first->value);
 		}
@@ -511,7 +543,7 @@ fortail: ';' exp
 		}
 	| ';'
 		{
-			add_child(create_node(TOK_EMPTYEXP), parents->first->value);
+			add_child(create_node(create_syn_val(SYN_TAG, TOK_EMPTYEXP)), parents->first->value);
 		}
 	;
 
@@ -522,16 +554,20 @@ idlist: %empty
 		} idlist
 	| ',' error
 		{
-			add_child(create_node(ERR_TOKEN), parents->first->value);
+			add_child(create_node(create_syn_val(SYN_TAG, ERR_TOKEN)), parents->first->value);
 			HANDLE_ERROR("Expected an identifier");
 		} idlist
 	;
 
-exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
-	| FLOAT  { add_child($1, ($$ = create_node(TOK_FLOAT)));  }
-	| EMPTY  { $$ = create_node(TOK_EMPTY);                   }
-	| STRING { add_child($1, ($$ = create_node(TOK_STRING))); }
-	| CHAR   { add_child($1, ($$ = create_node(TOK_CHAR)));   }
+exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))));    }
+	| FLOAT  { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_FLOAT))));  }
+	| STRING { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_STRING)))); }
+	| CHAR   { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_CHAR))));   }
+	| EMPTY  {
+			SYN_exp_t exp = SYN_EXP(create_syn_val(SYN_EXP, strdup(TOK_EMPTY)));
+			init_syn_exp(CTX_SET, 0, exp);
+			$$ = create_node(exp);
+		}
 	| ID
 		{
 			$$ = $1;
@@ -539,12 +575,13 @@ exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
 		}
 	| ID OPPOS
 		{
-			node_t exp = create_node(TOK_EXP);
-			node_t op = create_node(TOK_OPPOS);
+			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
+			node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPPOS));
 			add_child($2, op);
 			add_child($1, exp);
 			add_child(op, exp);
 			$$ = exp;
+			eval_exp_type(exp);
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 		}
 	| '*' exp %prec OPUNI { ADD_UNI_EXP($$, $1, $2);     }
@@ -569,9 +606,9 @@ exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
 	| exp OPBIN7 exp      { ADD_BIN_EXP($$, $1, $2, $3); }
 	| exp '?' exp ':' exp
 		{
-			node_t exp = create_node(TOK_EXP);
-			node_t op1 = create_node(TOK_OPTER);
-			node_t op2 = create_node(TOK_OPTER);
+			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
+			node_t op1 = create_node(create_syn_val(SYN_TAG, TOK_OPTER));
+			node_t op2 = create_node(create_syn_val(SYN_TAG, TOK_OPTER));
 			add_child($<node>2, op1);
 			add_child($<node>4, op2);
 			add_child($1, exp);
@@ -580,21 +617,63 @@ exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
 			add_child(op2, exp);
 			add_child($5, exp);
 			$$ = exp;
+			eval_exp_type(exp);
 		}
 	| ID OPASSIGN exp
 		{
-			node_t exp = create_node(TOK_EXP);
-			node_t op = create_node(TOK_OPASSIGN);
-			add_child($2, op);
-			add_child($1, exp);
-			add_child(op, exp);
-			add_child($3, exp);
+			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
+			node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPASSIGN));
+			if (operator_code(SYN_VALUE($2->value)->name) != OP_ASSIGN) {
+				/* Separa o operador composto em dois diferentes: '+' e '='
+				para '+=', por exemplo */
+				const char *opassign = operator_string(OP_ASSIGN);
+				char *midop = strdup(SYN_VALUE($2->value)->name);
+				midop[strlen(midop) - strlen(opassign)] = '\0';
+				midop = (char *) realloc(midop, strlen(midop) + 1);
+				free(SYN_VALUE($2->value)->name);
+				SYN_VALUE($2->value)->name = strdup(opassign);
+				/* Cria uma expresão intermediária usando midop */
+				node_t midexp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
+				node_t midoptag = create_node(create_syn_val(SYN_TAG, TOK_OPBIN));
+				add_child(create_node(create_syn_val(SYN_OP, midop)), midoptag);
+				init_syn_op(
+					operator_code(midop),
+					((node_t)midoptag->children->first->value)->value
+					);
+				/* Cria uma cópia do id */
+				node_t id_copy = create_node(create_syn_val(SYN_TAG, TOK_ID));
+				SYN_exp_t id_exp_copy = SYN_EXP(
+					create_syn_val(
+						SYN_EXP,
+						strdup(
+							SYN_EXP(((node_t)$1->children->first->value)->value)->name
+							)
+						)
+					);
+				init_syn_exp(CTX_UNK, 0, id_exp_copy);
+				add_child(create_node(id_exp_copy), id_copy);
+				add_child(id_copy, midexp);
+				add_child(midoptag, midexp);
+				add_child($3, midexp);
+
+				add_child($2, op);
+				add_child($1, exp);
+				add_child(op, exp);
+				add_child(midexp, exp);
+			} else {
+				add_child($2, op);
+				add_child($1, exp);
+				add_child(op, exp);
+				add_child($3, exp);
+			}
 			$$ = exp;
+			/* TODO: colocar para todas */
+			eval_exp_type(exp);
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 		}
 	| ID
 		{
-			$<node>$ = create_node(TOK_FN);
+			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_FN));
 			add_child($1, $<node>$);
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			insert(0, $<node>$, parents);
@@ -602,7 +681,11 @@ exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
 			$$ = $<node>2;
 			removeAt(0, parents);
 		}
-	| '(' exp ')' { add_child($2, ($$ = create_node(TOK_EXP))); }
+	| '(' exp ')'
+		{
+			add_child($2, ($$ = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP))));
+			eval_exp_type($$);
+		}
 	/* Erros */
 	| exp '*' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
 	| exp '/' error    { ADD_BIN_EXP_ERR($$, $1, $2); }
@@ -619,44 +702,94 @@ exp: INT     { add_child($1, ($$ = create_node(TOK_INT)));    }
 	| exp OPBIN8 error { ADD_BIN_EXP_ERR($$, $1, $2); }
 	| ID OPASSIGN error
 		{
-			node_t exp = create_node(TOK_EXP);
-			node_t op = create_node(TOK_OPASSIGN);
+			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
+			node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPASSIGN));
 			add_child($2, op);
 			add_child($1, exp);
 			add_child(op, exp);
-			node_t err = create_node(ERR_TOKEN);
+			node_t err = create_node(create_syn_val(SYN_TAG, ERR_TOKEN));
 			add_child(err, exp);
 			$$ = exp;
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			ssprintf(
 				syn_errormsg,
 				"Expected expression in '%s %s'",
-				FIRSTCHILD_VALUE($1),
-				$2->value
+				SYN_EXP(FIRSTCHILD_VALUE($1))->name,
+				SYN_OP($2->value)->name
 				);
 			HANDLE_ERROR(syn_errormsg);
 		}
 	;
 
 fntail: '(' arglist ')'
+		{
+			node_t fn_syn = parents->first->value;
+			char *fn_name = SYN_VALUE(FIRSTCHILD_VALUE(fn_syn->children->first->value))->name;
+			CTX_sym_t fn_sym = lookup_symbol(fn_name, current_context);
+			if (fn_sym != NULL &&
+				fn_sym->type == CTX_FUN &&
+				CTX_FUN(fn_sym)->params != NULL) {
+				size_t fn_args_count = fn_syn->children->size - 1;
+				/** TODO: checar in-exp
+				 * Se é uma função que suporta (padrões)
+				 * Separar em elem e set
+				 * Checar se é elem e set??
+				 */
+				list_t arg_list = create_list();
+				// printf("=========\n%s\n", fn_name);
+				// MAP({
+				// 	printf(">> %s\n", data_type_string(eval_exp_type(MAP_val)));
+				// }, fn_syn->children);
+				if (CTX_FUN(fn_sym)->params->size != fn_args_count) {
+					yyerror(NULL, NULL, NULL);
+					ssprintf(
+						syn_errormsg,
+						"Expected %lu arguments in %s() call (found %lu)",
+						CTX_FUN(fn_sym)->params->size,
+						fn_name,
+						fn_args_count
+						);
+					HANDLE_ERROR(syn_errormsg);
+				} else {
+					iter_t it_pars = ITERATOR(CTX_FUN(fn_sym)->params, ITER_DOWN);
+					iter_t it_args = ITERATOR(fn_syn->children, ITER_DOWN);
+					while (ITER_HAS(it_pars)) {
+						CTX_sym_t par = ITER(it_pars, CTX_sym_t, NULL);
+						int par_type = par->data_type;
+						int arg_type = eval_exp_type(ITER(it_args, node_t, NULL));
+
+						if (!can_cast(arg_type, par_type)) {
+							yyerror(NULL, NULL, NULL);
+							ssprintf(
+								syn_errormsg,
+								"Can not cast %s value to %s for the parameter \"%s\" of %s()",
+								data_type_string(arg_type),
+								data_type_string(par_type),
+								par->id,
+								fn_name
+								);
+							HANDLE_ERROR(syn_errormsg);
+						}
+					}
+				}
+				delete_list(arg_list);
+			}
+		}
 	| '(' arglist error { HANDLE_ERROR("Expected ')'"); }
 	;
 
 arglist: %empty
-	| exp argtail { add_child($1, parents->first->value); }
+	| exp { add_child($1, parents->first->value); } argtail 
 	;
 
 argtail: %empty
-	| ',' exp argtail { add_child($2, parents->first->value); }
+	| ',' exp { add_child($2, parents->first->value); } argtail 
 	;
 
 %%
 
 int yyerror(int *max, int *children_count, char *s) {
-	err_loc_t *loc = (err_loc_t *) malloc(sizeof(err_loc_t));
-	loc->errlnum = lnum;
-	loc->errlcol = lcol;
-	prepend(loc, err_loc);
+	SET_ERROR_LOCATION(lnum, lcol, err_loc);
 	return 0;
 }
 
@@ -725,9 +858,8 @@ void print_syntatic(node_t node) {
 	printf(
 		"%s%s" PARSER_CLEARCOLOR,
 		node->parent == NULL ? "\033[4m" : "",
-		(char *) node->value
+		node->parent == NULL ? (char *) node->value : SYN_VALUE(node->value)->name
 		);
-	printf("\033[0m");
 }
 
 void print_context(node_t node) {
@@ -750,14 +882,34 @@ void print_context(node_t node) {
 		for (; it != NULL; it = it->next) {
 			CTX_sym_t sym = it->value;
 			printf(
-				"%s%s: (%s) \"" TREEACCENTCOLOR "%s" PARSER_CLEARCOLOR "\"",
+				"%s%s: (%s%s%s) \"" TREEACCENTCOLOR "%s" PARSER_CLEARCOLOR "\"",
 				node->parent == NULL && it == ((list_t)node->value)->first?
 					TREEBRANCH TREEBRANCH TREECHILDFIRST TREEBRANCH  TREELEAF " " :
 					"",
 				type_string(sym->type),
 				data_type_string(sym->data_type),
+				sym->type == CTX_VAR &&
+				CTX_VAR(sym)->secondary_data_type != CTX_UNK ?
+				": " : "",
+				sym->type == CTX_VAR &&
+				CTX_VAR(sym)->secondary_data_type != CTX_UNK ?
+				data_type_string(CTX_VAR(sym)->secondary_data_type) :
+				"",
 				sym->id
 				);
+			if (sym->type == CTX_FUN) {
+				printf(" (");
+				if (CTX_FUN(sym)->params != NULL) {
+					MAP(
+						printf(
+							"\""TREEACCENTCOLOR"%s"PARSER_CLEARCOLOR"\"%s",
+							CTX_SYM(MAP_val)->id,
+							MAP_i < CTX_FUN(sym)->params->size - 1 ? ", " : ""
+							)
+					, CTX_FUN(sym)->params);
+				}
+				printf(")");
+			}
 			if (it->next != NULL) {
 				printf("\n");
 				print(node, &data);
@@ -773,9 +925,20 @@ void max_level(node_t node, void *data) {
 	if (*max < l) *max = l;
 }
 
+void create_context_table(node_t node, void *data) {
+	set_t ctx_set = data;
+	MAP({
+		set_elem_t el = create_set_elem(0, MAP_val, compare_symbol, NULL);
+		if (!set_add(el, ctx_set)) {
+			delete_set_elem(el);
+		}
+	}, node->value);
+}
+
 void free_values(node_t node, void *data) {
-	if (!IS_TOK(node->value) && strcmp(node->value, filename)) {
-		free(node->value);
+	/* node_t -> SYN_value_t  */
+	if (strcmp(node->value, filename)) {
+		delete_syn_val(node->value);
 	}
 }
 
@@ -788,34 +951,78 @@ void free_context(node_t node, void *data) {
 
 void init_context(node_t node) {
 	/*
-	int write(char *message)
-	int writeln(char *message)
+	int write(T object)
+	int writeln(T object)
 	int read(T output)
 	int is_set(elem el)
 	set add(inexp exp)
 	set remove(inexp exp)
 	elem exists(inexp exp)
 	*/
+	CTX_sym_t sym = NULL;
+
 	CTX_sym_t write   = create_symbol(CTX_FUN, "write"  , CTX_INT);
-	CTX_sym_t writeln = create_symbol(CTX_FUN, "writeln", CTX_INT);
-	CTX_sym_t read    = create_symbol(CTX_FUN, "read"   , CTX_INT);
-	CTX_sym_t is_set  = create_symbol(CTX_FUN, "is_set" , CTX_INT);
-	CTX_sym_t add     = create_symbol(CTX_FUN, "add"    , CTX_SET);
-	CTX_sym_t remove  = create_symbol(CTX_FUN, "remove" , CTX_SET);
-	CTX_sym_t exists  = create_symbol(CTX_FUN, "exists" , CTX_ELEM);
 	append(write  , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "object", "elem");
+	sym = lookup_symbol("object", current_context);
+	append(sym, (CTX_FUN(write)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t writeln = create_symbol(CTX_FUN, "writeln", CTX_INT);
 	append(writeln, node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "object", "elem");
+	sym = lookup_symbol("object", current_context);
+	append(sym, (CTX_FUN(writeln)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t read    = create_symbol(CTX_FUN, "read"   , CTX_INT);
 	append(read   , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "output", "elem");
+	sym = lookup_symbol("output", current_context);
+	append(sym, (CTX_FUN(read)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t is_set  = create_symbol(CTX_FUN, "is_set" , CTX_INT);
 	append(is_set , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "element", "elem");
+	sym = lookup_symbol("element", current_context);
+	append(sym, (CTX_FUN(is_set)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t add     = create_symbol(CTX_FUN, "add"    , CTX_SET);
 	append(add    , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
+	sym = lookup_symbol("expression", current_context);
+	append(sym, (CTX_FUN(add)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t remove  = create_symbol(CTX_FUN, "remove" , CTX_SET);
 	append(remove , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
+	sym = lookup_symbol("expression", current_context);
+	append(sym, (CTX_FUN(remove)->params = create_list()));
+	POP_CONTEXT;
+
+	CTX_sym_t exists  = create_symbol(CTX_FUN, "exists" , CTX_ELEM);
 	append(exists , node->value);
+	PUSH_CONTEXT;
+	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
+	sym = lookup_symbol("expression", current_context);
+	append(sym, (CTX_FUN(exists)->params = create_list()));
+	POP_CONTEXT;
+
 }
 
 int main(int argc, char **argv) {
-	int show_context = 1, show_syntatic_tree = 1;
+	int show_context = 1, show_syntatic_tree = 1, show_table = 0;
 	char c, *farg = NULL;
-	while ((c = getopt(argc, argv, "CSh")) != -1) {
+	while ((c = getopt(argc, argv, "CSth")) != -1) {
 		switch (c) {
 		case 'C':
 			show_context = 0;
@@ -823,10 +1030,14 @@ int main(int argc, char **argv) {
 		case 'S':
 			show_syntatic_tree = 0;
 			break;
+		case 't':
+			show_table = 1;
+			break;
 		case 'h':
 			printf("%s [OPTIONS] FILE [OPTIONS]\n", argv[0]);
 			printf("\t-C\tinibe a impressão da árvore de contexto\n");
 			printf("\t-S\tinibe a impressão da árvore sintática de contexto\n");
+			printf("\t-t\timprime uma tabela com cada símbolo encontrado de nome diferente\n");
 			printf("\t-h\timprime esta ajuda e sai\n");
 			exit(EXIT_SUCCESS);
 		case '?':
@@ -891,6 +1102,104 @@ int main(int argc, char **argv) {
 		depth_pre(print, context, &ctx_data, NULL, NULL);   /**/
 		free(children_count);                               /**/
 	}                                                       /**/
+	/* =============== INÍCIO DA TABELA =================*/ /**/
+	/* TODO: isso é temporário, depois tem que tirar */     /**/
+	if (show_table) {                                       /**/
+		set_t ctx_set = create_set();                       /**/
+		depth_pre(                                          /**/
+			create_context_table,                           /**/
+			context,                                        /**/
+			ctx_set,                                        /**/
+			NULL,                                           /**/
+			NULL                                            /**/
+			);                                              /**/
+		/* Só valores pares */                              /**/
+		int type_len = 10, data_type_len = 6, id_len = 16;  /**/
+		printf(BOX_TOP_LEFT);                               /**/
+		for (int i = 0; i < type_len; i++) {                /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_TOP);                              /**/
+		for (int i = 0; i < data_type_len; i++) {           /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_TOP);                              /**/
+		for (int i = 0; i < id_len; i++) {                  /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_TOP_RIGHT"\n");                          /**/
+		printf(                                             /**/
+			BOX_VERT                                        /**/
+			"%*s%-*.*s"                                     /**/
+			BOX_VERT                                        /**/
+			"%*s%-*.*s"                                     /**/
+			BOX_VERT                                        /**/
+			"%*s%-*.*s"                                     /**/
+			BOX_VERT                                        /**/
+			"\n",                                           /**/
+			(int) (type_len - strlen("simbolo ")) / 2, "",  /**/
+			(int) (type_len + strlen("simbolo ")) / 2,      /**/
+			type_len, "simbolo",                            /**/
+			(int) (data_type_len - strlen("tipo")) / 2, "", /**/
+			(int) (data_type_len + strlen("tipo")) / 2,     /**/
+			data_type_len, "tipo",                          /**/
+			(int) (id_len - strlen("identificador ")) / 2,  /**/
+			"",                                             /**/
+			(int) (id_len + strlen("identificador ")) / 2,  /**/
+			id_len, "identificador"                         /**/
+			);                                              /**/
+		printf(BOX_CROSS_LEFT);                             /**/
+		for (int i = 0; i < type_len; i++) {                /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_IN);                               /**/
+		for (int i = 0; i < data_type_len; i++) {           /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_IN);                               /**/
+		for (int i = 0; i < id_len; i++) {                  /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_RIGHT"\n");                        /**/
+		MAP({                                               /**/
+			CTX_sym_t sym =                                 /**/
+				CTX_SYM(SET_ELEM(MAP_val)->value);          /**/
+			printf(BOX_VERT);                               /**/
+			printf(                                         /**/
+				"%-*.*s"BOX_VERT,                           /**/
+				type_len,                                   /**/
+				type_len,                                   /**/
+				type_string(sym->type)                      /**/
+				);                                          /**/
+			printf(                                         /**/
+				"%-*.*s"BOX_VERT,                           /**/
+				data_type_len,                              /**/
+				data_type_len,                              /**/
+				data_type_string(sym->data_type)            /**/
+				);                                          /**/
+			printf(                                         /**/
+				"%-*.*s"BOX_VERT"\n",                       /**/
+				id_len,                                     /**/
+				id_len,                                     /**/
+				sym->id                                     /**/
+				);                                          /**/
+		}, ctx_set);                                        /**/
+		printf(BOX_BOT_LEFT);                               /**/
+		for (int i = 0; i < type_len; i++) {                /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_BOT);                              /**/
+		for (int i = 0; i < data_type_len; i++) {           /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_CROSS_BOT);                              /**/
+		for (int i = 0; i < id_len; i++) {                  /**/
+			printf(BOX_HOR);                                /**/
+		}                                                   /**/
+		printf(BOX_BOT_RIGHT"\n");                          /**/
+		delete_set(ctx_set);                                /**/
+	}                                                       /**/
+	/* ================= FIM DA TABELA ==================*/ /**/
 	/* Limpa o contexto */                                  /**/
 	depth_pos(free_context, context, NULL, NULL, NULL);     /**/
 	delete_node(context);                                   /**/

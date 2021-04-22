@@ -2,6 +2,11 @@
 #define __UTIL_H__
 
 #include <config.h>
+
+/* Informações sobre tamanhos de strings */
+#define NAMESIZE 32768
+#define FILENAMESIZE 512
+
 /* ======== Definição de caracteres para impressão da árvore ===== */
 #ifdef WITH_UNICODE
 
@@ -15,6 +20,18 @@
 
 #define SEPARATOR "══════════"
 
+#define BOX_TOP_RIGHT "┐"
+#define BOX_TOP_LEFT "┌"
+#define BOX_BOT_RIGHT "┘"
+#define BOX_BOT_LEFT "└"
+#define BOX_VERT "│"
+#define BOX_HOR "─"
+#define BOX_CROSS_IN "┼"
+#define BOX_CROSS_LEFT "├"
+#define BOX_CROSS_RIGHT "┤"
+#define BOX_CROSS_TOP "┬"
+#define BOX_CROSS_BOT "┴"
+
 #else
 
 #define TREECHILDFIRST "."
@@ -26,6 +43,18 @@
 #define TREEBRANCH "-"
 
 #define SEPARATOR "=========="
+
+#define BOX_TOP_RIGHT "+"
+#define BOX_TOP_LEFT "+"
+#define BOX_BOT_RIGHT "+"
+#define BOX_BOT_LEFT "+"
+#define BOX_VERT "|"
+#define BOX_HOR "-"
+#define BOX_CROSS_IN "+"
+#define BOX_CROSS_LEFT "|"
+#define BOX_CROSS_RIGHT "|"
+#define BOX_CROSS_TOP "-"
+#define BOX_CROSS_BOT "-"
 
 #endif
 /* ============================================================== */
@@ -71,6 +100,14 @@ typedef struct err_location {
     free(loc);                                                                 \
   }
 
+#define SET_ERROR_LOCATION(LNUM, LCOL, ERR_LOC)                                \
+  {                                                                            \
+    err_loc_t *loc = (err_loc_t *)malloc(sizeof(err_loc_t));                   \
+    loc->errlnum = LNUM;                                                       \
+    loc->errlcol = LCOL;                                                       \
+    prepend(loc, ERR_LOC);                                                     \
+  }
+
 /* Tokens */
 #define TOK_EXP "<exp>"
 #define TOK_OPBIN "<opbin>"
@@ -83,7 +120,7 @@ typedef struct err_location {
 #define TOK_RETURN "<return>"
 #define TOK_BLOCK "<block>"
 #define TOK_EMPTYCMD "<emptycmd>"
-#define TOK_EMPTY "<empty>"
+#define TOK_EMPTY "EMPTY"
 #define TOK_DECLR "<declr>"
 #define TOK_PARLIST "<parlist>"
 #define TOK_EMPTYEXP "<emptyexp>"
@@ -99,21 +136,5 @@ typedef struct err_location {
 #define TOK_TYPE "<type>"
 #define TOK_DECLR_FN "<declr_fn>"
 #define TOK_DECLR_INIT "<declr_init>"
-
-#define IS_TOK(TOK)                                                            \
-  (((char *)TOK) == &ERR_TOKEN[0] || ((char *)TOK) == &TOK_EXP[0] ||           \
-   ((char *)TOK) == &TOK_OPBIN[0] || ((char *)TOK) == &TOK_OPUNI[0] ||         \
-   ((char *)TOK) == &TOK_IF[0] || ((char *)TOK) == &TOK_IF_ELSE[0] ||          \
-   ((char *)TOK) == &TOK_WHILE[0] || ((char *)TOK) == &TOK_FORALL[0] ||        \
-   ((char *)TOK) == &TOK_FOR[0] || ((char *)TOK) == &TOK_RETURN[0] ||          \
-   ((char *)TOK) == &TOK_BLOCK[0] || ((char *)TOK) == &TOK_EMPTYCMD[0] ||      \
-   ((char *)TOK) == &TOK_EMPTY[0] || ((char *)TOK) == &TOK_DECLR[0] ||         \
-   ((char *)TOK) == &TOK_PARLIST[0] || ((char *)TOK) == &TOK_EMPTYEXP[0] ||    \
-   ((char *)TOK) == &TOK_INT[0] || ((char *)TOK) == &TOK_FLOAT[0] ||           \
-   ((char *)TOK) == &TOK_STRING[0] || ((char *)TOK) == &TOK_CHAR[0] ||         \
-   ((char *)TOK) == &TOK_OPPOS[0] || ((char *)TOK) == &TOK_OPTER[0] ||         \
-   ((char *)TOK) == &TOK_OPASSIGN[0] || ((char *)TOK) == &TOK_FN[0] ||         \
-   ((char *)TOK) == &TOK_ID[0] || ((char *)TOK) == &TOK_TYPE[0] ||             \
-   ((char *)TOK) == &TOK_DECLR_FN[0] || ((char *)TOK) == &TOK_DECLR_INIT[0])
 
 #endif

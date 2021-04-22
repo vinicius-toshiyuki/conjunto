@@ -1,6 +1,7 @@
 set add_int(set s) {
     return add(2 in add(1 in s));
     // {1,2}
+	int i;
 	for ( i = ; 3 in s     ; i++ ) {
 		writeln("teset");
 	}
@@ -46,6 +47,7 @@ int main() {
     
     forall(if(i > 2)) {
         acc = acc + x; // when x is {1,2} the behaviour is undefined; this may raise an exception at runtime
+		float ifo;
     accf = ifo + x;
     }
 

@@ -29,8 +29,7 @@ void insert(int idx, void *value, list_t list) {
     list->last = elem;
     elem->prev = NULL;
     elem->next = NULL;
-  }
-  if (idx == list->size) {
+  } else if (idx == list->size) {
     list->last->next = elem;
     elem->prev = list->last;
     elem->next = NULL;
@@ -94,6 +93,18 @@ void *removeAt(int idx, list_t list) {
   list->size--;
   void *ret = elem->value;
   free(elem);
+  return ret;
+}
+
+void *elementAt(int idx, list_t list) {
+  if (idx < 0 || idx >= list->size) {
+    fprintf(stderr, "Invalid index in elementAt()\n");
+    exit(EXIT_FAILURE);
+  }
+  void *ret = NULL;
+  MAP(
+      if (MAP_i == idx) { ret = MAP_val; }, list);
+
   return ret;
 }
 

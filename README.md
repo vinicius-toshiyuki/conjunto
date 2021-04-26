@@ -28,8 +28,9 @@ que habilitam a impressão das árvores com caracteres Unicode e a impressão co
 cores de 24 bits, respectivamente, se o seu terminal suportar.
 
 `src/parser` aceita as opções `-C` e `-S` para inibir a impressão da árvore de
-contexto e árvore sintática abstrata, respectivamente, e a opção `-h` e
-deve receber o nome de um arquivo para ser usado como entrada.
+contexto e árvore sintática abstrata, respectivamente, e a opção `-t`, que
+faz com que uma tabela com os símbolos declarados (sem repetição de nome), e a
+opção `-h` e deve receber o nome de um arquivo para ser usado como entrada.
 
 ## TODO
 

@@ -6,7 +6,6 @@
 
 /**
  * Indica os tipos de valores da árvore sintática.
- * TODO: conflita com as macros de cast?
  */
 enum { SYN_TAG = 0, SYN_EXP, SYN_EXP_COMP, SYN_OP, SYN_TYPE };
 
@@ -67,6 +66,7 @@ typedef struct syn_exp {
   int type;
   int data_type; /* Armazena o tipo de dados armazenado como em context.h */
   int depth;     /* Armazena a profundidade dos dados armazenados (ponteiro) */
+  int cast;      /* Armazena o tipo coercido ou CTX_INV caso não haja */
 } * SYN_exp_t;
 
 /**
@@ -90,7 +90,7 @@ typedef struct syn_tag {
 typedef struct syn_op {
   char *name;
   int type;
-  int op_type;
+  int op_type; /* TODO: valor meio inútil */
 } * SYN_op_t;
 
 /**
@@ -145,7 +145,6 @@ void delete_syn_val(SYN_value_t value);
 
 /**
  * Inicializa um valor sintático de expressão.
- * TODO: acho que está repetindo muita coisa do CTX_var_t.
  */
 void init_syn_exp(int data_type, int depth, SYN_exp_t exp);
 
@@ -166,7 +165,18 @@ void init_syn_type(SYN_type_t type);
 
 void print_syn_exp(SYN_exp_t exp);
 
+// void __print_syn_exp(void *value, int data_type, int depth, int *length)
+// __attribute__((deprecated));
+
 const char *operator_string(int code);
 int operator_code(const char *string);
+
+/**
+ * Faz o cast de `node` para o tipo `type`.
+ * Não é checado se o casting é válido.
+ */
+void cast_to(int type, node_t node);
+
+void __cast_to(node_t node, void *data);
 
 #endif

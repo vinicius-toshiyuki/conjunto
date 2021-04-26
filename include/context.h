@@ -7,7 +7,6 @@
 /**
  * Tipos de símbolos.
  * TODO: adicionar constantes?
- * TODO: conflita com as macros de cast?
  */
 enum { CTX_VAR = 0, CTX_FUN };
 
@@ -15,6 +14,7 @@ enum { CTX_VAR = 0, CTX_FUN };
  * Tipos primitivos dos valores dos símbolos.
  */
 enum {
+  CTX_INV = -2,
   CTX_UNK = -1,
   CTX_INT = 0,
   CTX_FLOAT,
@@ -102,15 +102,9 @@ CTX_sym_t lookup_symbol(char *id, node_t ctx);
 /**
  * Checa se o contexto `local_ctx` tem o símbolo com nome `id`.
  * Retorna 0 se houver.
+ * TODO: trocar para 1
  */
 int has_symbol(char *id, list_t local_ctx);
-
-/**
- * Faz o cast de `sym` para o tipo `type` e retorna o sucesso da operação com 0.
- */
-int cast_to(int type, CTX_sym_t sym);
-
-void __cast_int_to_float(CTX_sym_t sym);
 
 /**
  * Retorna uma string que representa o tipo de símbolo `type`.

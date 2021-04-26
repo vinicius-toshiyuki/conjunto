@@ -45,4 +45,8 @@ deve receber o nome de um arquivo para ser usado como entrada.
 - [x] Avaliar uma expressão (tipo, depois valor?)
 - [ ] Parar de criar tags no léxico
 - [x] Para de usar o yyerror()
-- [ ] tratar in-expression
+- [ ] Tratar in-expression
+- [ ] Mudar os caracteres unicode para os códigos
+- [ ] Usar wchar?
+- [ ] Ver redefinições de funções
+- [ ] Ver se chamadas de funções são para funções

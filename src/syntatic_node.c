@@ -19,6 +19,7 @@ SYN_value_t create_syn_val(int type, char *name) {
     value = SYN_EXP(malloc(sizeof(struct syn_exp)));
     SYN_EXP(value)->data_type = CTX_UNK;
     SYN_EXP(value)->depth = 0;
+    SYN_EXP(value)->cast = CTX_INV;
     break;
   case SYN_OP:
     value = SYN_OP(malloc(sizeof(struct syn_op)));
@@ -323,5 +324,22 @@ int operator_code(const char *string) {
   } else {
     fprintf(stderr, "Invalid operator string in operator_code()\n");
     exit(EXIT_FAILURE);
+  }
+}
+
+void cast_to(int type, node_t node) {
+  int data[2] = {0, type};
+  depth_pre(__cast_to, node, data, NULL, NULL);
+}
+
+void __cast_to(node_t node, void *data) {
+  int found = ((int *)data)[0];
+  int type = ((int *)data)[1];
+  if (!found &&
+      (SYN_VALUE(node->value)->type == SYN_EXP ||
+       SYN_VALUE(node->value)->type == SYN_EXP_COMP) &&
+      SYN_EXP(node->value)->data_type != type) {
+    SYN_EXP(node->value)->cast = type;
+    found = 1;
   }
 }

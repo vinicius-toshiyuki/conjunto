@@ -153,6 +153,8 @@ int eval_exp_type(node_t exp) {
                     data_type_string(eval_exp_type(subexp2)),
                     data_type_string(exp_type));
             HANDLE_ERROR(syn_errormsg);
+          } else {
+            cast_to(exp_type, subexp2);
           }
           break;
         case OP_PLUS:
@@ -160,6 +162,7 @@ int eval_exp_type(node_t exp) {
         case OP_STAR:
         case OP_DIV:
         case OP_MOD:
+          /* TODO: mensagem repetida no teste 3 para a = b + c */
           exp_type =
               eval_max_type(eval_exp_type(subexp1), eval_exp_type(subexp2));
           if (eval_max_type(exp_type, CTX_FLOAT) != CTX_FLOAT) {
@@ -170,6 +173,9 @@ int eval_exp_type(node_t exp) {
                     data_type_string(eval_exp_type(subexp1)),
                     data_type_string(eval_exp_type(subexp2)));
             HANDLE_ERROR(syn_errormsg);
+          } else {
+            cast_to(exp_type, subexp1);
+            cast_to(exp_type, subexp2);
           }
           break;
         case OP_BIN_BIT_OR:
@@ -178,12 +184,16 @@ int eval_exp_type(node_t exp) {
         case OP_BIN_SHIFT_L:
         case OP_BIN_SHIFT_R:
           exp_type = eval_exp_type(subexp1);
-          if (eval_max_type(eval_exp_type(subexp2), CTX_INT) != CTX_INT) {
+          // if (eval_max_type(eval_exp_type(subexp2), CTX_INT) != CTX_INT) {
+          // TODO: warning: não é int
+          // }
+          if (!can_cast(eval_exp_type(subexp2), CTX_INT)) {
             SET_ERROR_LOCATION(lnum, lcol, err_loc);
             sprintf(syn_errormsg, "Shift amount must be %s, not %s",
                     data_type_string(CTX_INT), data_type_string(exp_type));
             HANDLE_ERROR(syn_errormsg);
           }
+          cast_to(CTX_INT, subexp2);
           break;
         case OP_BIN_OR:
         case OP_BIN_AND:
@@ -198,8 +208,8 @@ int eval_exp_type(node_t exp) {
         case OP_BIN_GTE:
           /* Um valor bool */
           exp_type = CTX_INT;
-          if (eval_max_type(eval_exp_type(subexp1), eval_exp_type(subexp2)) !=
-              CTX_FLOAT) {
+          if (eval_max_type(eval_exp_type(subexp1), eval_exp_type(subexp2)) ==
+              CTX_UNK) {
             SET_ERROR_LOCATION(lnum, lcol, err_loc);
             sprintf(syn_errormsg,
                     "Operator \"%s\" not supported between %s and %s",
@@ -207,19 +217,27 @@ int eval_exp_type(node_t exp) {
                     data_type_string(eval_exp_type(subexp1)),
                     data_type_string(eval_exp_type(subexp2)));
             HANDLE_ERROR(syn_errormsg);
+          } else {
+            cast_to(
+                eval_max_type(eval_exp_type(subexp1), eval_exp_type(subexp2)),
+                subexp1);
+            cast_to(
+                eval_max_type(eval_exp_type(subexp1), eval_exp_type(subexp2)),
+                subexp2);
           }
           break;
         case OP_BIN_IN:
           exp_type = CTX_INEXP;
-          if (eval_exp_type(subexp1) != CTX_ELEM) {
-            SET_ERROR_LOCATION(lnum, lcol, err_loc);
-            sprintf(syn_errormsg,
-                    "Left-hand side expression of operator \"%s\" must be of "
-                    "type %s (found %s)",
-                    operator_string(op1->op_type), data_type_string(CTX_ELEM),
-                    data_type_string(eval_exp_type(subexp1)));
-            HANDLE_ERROR(syn_errormsg);
-          }
+          /* Aparentemente o lado esquerdo pode ser de qualquer tipo */
+          // if (eval_exp_type(subexp1) != CTX_ELEM) {
+          //   SET_ERROR_LOCATION(lnum, lcol, err_loc);
+          //   sprintf(syn_errormsg,
+          //           "Left-hand side expression of operator \"%s\" must be of
+          //           " "type %s (found %s)", operator_string(op1->op_type),
+          //           data_type_string(CTX_ELEM),
+          //           data_type_string(eval_exp_type(subexp1)));
+          //   HANDLE_ERROR(syn_errormsg);
+          // }
           if (eval_exp_type(subexp2) != CTX_SET) {
             SET_ERROR_LOCATION(lnum, lcol, err_loc);
             sprintf(syn_errormsg,
@@ -258,12 +276,16 @@ int eval_exp_type(node_t exp) {
                   data_type_string(eval_exp_type(subexp3)),
                   operator_string(op1->op_type), operator_string(op2->op_type));
           HANDLE_ERROR(syn_errormsg);
+        } else {
+          cast_to(exp_type, subexp2);
+          cast_to(exp_type, subexp3);
         }
         break;
       default:
         fprintf(stderr, "Badly formed expression in eval_exp_type()\n");
         exit(EXIT_FAILURE);
       }
+
       SYN_EXP_COMP(exp->value)->data_type = exp_type;
     } else {
       exp_type = SYN_EXP_COMP(exp->value)->data_type;
@@ -356,7 +378,7 @@ int can_cast(int type1, int type2) {
     }
     break;
   case CTX_ELEM:
-    can = 0;
+    can = type1 == type2;
     break;
   case CTX_SET:
     if (type2 == CTX_CHAR || type2 == CTX_INT || type2 == CTX_FLOAT) {

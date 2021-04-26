@@ -31,6 +31,10 @@
 #define BOX_CROSS_RIGHT "┤"
 #define BOX_CROSS_TOP "┬"
 #define BOX_CROSS_BOT "┴"
+#define BOX_HEADER_HOR "━"
+#define BOX_HEADER_LEFT "┝"
+#define BOX_HEADER_RIGHT "┥"
+#define BOX_HEADER_MID "┿"
 
 #else
 
@@ -55,6 +59,10 @@
 #define BOX_CROSS_RIGHT "|"
 #define BOX_CROSS_TOP "-"
 #define BOX_CROSS_BOT "-"
+#define BOX_HEADER_HOR "="
+#define BOX_HEADER_LEFT "|"
+#define BOX_HEADER_RIGHT "|"
+#define BOX_HEADER_MID "="
 
 #endif
 /* ============================================================== */
@@ -136,5 +144,11 @@ typedef struct err_location {
 #define TOK_TYPE "<type>"
 #define TOK_DECLR_FN "<declr_fn>"
 #define TOK_DECLR_INIT "<declr_init>"
+
+#ifdef __GNUC__
+#define DEPRECATED(fun) fun __attribute__((deprecated))
+#else
+#define DEPRECATED(fun) fun
+#endif
 
 #endif

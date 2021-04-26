@@ -82,7 +82,9 @@
 #define ADD_CONTEXT(SYM_TYPE, ID_CONTEXT, TYPE_CONTEXT) {            \
 	char *TYPE_NAME = TYPE_CONTEXT;                                  \
 	char *ID_NAME = ID_CONTEXT;                                      \
-	if (has_symbol(ID_NAME, current_context->value) != 0) {          \
+	CTX_sym_t MAYBE_FUN = lookup_symbol(ID_NAME, context);           \
+	if (has_symbol(ID_NAME, current_context->value) != 0 &&          \
+		(MAYBE_FUN == NULL || MAYBE_FUN->type != CTX_FUN)) {         \
 		int ENTRYTYPE = data_type_code(TYPE_NAME);                   \
 		CTX_sym_t SYM = create_symbol(SYM_TYPE, ID_NAME, ENTRYTYPE); \
 		append(SYM, current_context->value);                         \
@@ -100,21 +102,22 @@ typedef struct {
 	int *children_count;
 	void (*val_print)(node_t value);
 	int only_spaces;
+	int detailed;
 } print_data_t;
 
 /* Assinatura dependente do %parse-param */
 int yyerror(int *max, int *children_count, char *s);
 int yylex();
 
-void ssprintf(char *target, char *template, ...);   /* É a mesma coisa do sprintf()                 */
-void print(node_t node, void *data);                /* Imprime um nó de uma árvore                  */
-void print_syntatic(node_t value);                  /* Imprime o valor de um nó da árvore sintática */
-void print_context(node_t value);                   /* Imprime o valor de um nó do contexto         */
-void max_level(node_t node, void *data);            /* Obtém a profundidade de uma árvore           */
-void create_context_table(node_t node, void *data); /* Popula um set com os símbolos do contexto    */
-void free_values(node_t node, void *data);          /* Libera a memória do valor de um nó           */
-void free_context(node_t node, void *data);         /* Libera a memória de um context               */
-void init_context(node_t node);                     /* Inicia o contexto com funções integradas     */
+void ssprintf(char *target, char *template, ...);   /* É a mesma coisa do sprintf()                    */
+void print(node_t node, void *data);                /* Imprime um nó de uma árvore                     */
+void print_syntatic(node_t value);                  /* Imprime o valor de um nó da árvore sintática    */
+void print_context(node_t value);                   /* Imprime o valor de um nó do contexto            */
+void max_level(node_t node, void *data);            /* Obtém a profundidade de uma árvore              */
+void create_context_table(node_t node, void *data); /* Popula um set com os símbolos do contexto       */
+void free_values(node_t node, void *data);          /* Libera a memória do valor de um nó              */
+void free_context(node_t node, void *data);         /* Libera a memória de um context (não o contexto) */
+void init_context(node_t node);                     /* Inicia o contexto com funções integradas        */
 
 extern int lnum, lcol; /* Vêm do lexico.l */
 
@@ -188,7 +191,39 @@ node_t context; /* Árvore de contextos */
 
 %%
 
-prog: declarations;
+prog: declarations {
+		CTX_sym_t main_sym = lookup_symbol("main", context);
+		if (main_sym == NULL || main_sym->type != CTX_FUN) {
+			yyerror(NULL, NULL, NULL);
+			sprintf(
+				syn_errormsg,
+				"Program entry point \"main\" function not declared"
+				);
+			HANDLE_ERROR(syn_errormsg);
+		} else {
+			if (main_sym->data_type != CTX_INT) {
+				yyerror(NULL, NULL, NULL);
+				sprintf(
+					syn_errormsg,
+					"Invalid return data type \"%s\" for \"main\""
+					" function (must be int)",
+					data_type_string(main_sym->data_type)
+					);
+				HANDLE_ERROR(syn_errormsg);
+			}
+			if (CTX_FUN(main_sym)->params != NULL &&
+				CTX_FUN(main_sym)->params->size > 0) {
+				yyerror(NULL, NULL, NULL);
+				sprintf(
+					syn_errormsg,
+					"Invalid parameters list size for \"main\" function"
+					" (found %lu, must be 0)",
+					CTX_FUN(main_sym)->params->size
+					);
+				HANDLE_ERROR(syn_errormsg);
+			}
+		}
+	};
 
 declarations: %empty
 	| declaration {
@@ -318,14 +353,26 @@ declaration: TYPE ID
 			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR_FN));
 			add_child($1, $<node>$);
 			add_child($2, $<node>$);
-			ADD_CONTEXT(CTX_FUN, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
-			PUSH_CONTEXT;
+			if (current_context == context) {
+				ADD_CONTEXT(CTX_FUN, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
+				PUSH_CONTEXT;
+			} else {
+				yyerror(NULL, NULL, NULL);
+				sprintf(
+					syn_errormsg,
+					"Invalid function declaration of \"%s\" not in global context",
+					SYN_EXP(FIRSTCHILD_VALUE($2))->name
+					);
+				HANDLE_ERROR(syn_errormsg);
+			}
 
 			node_t pars = create_node(create_syn_val(SYN_TAG, TOK_PARLIST));
 			add_child(pars, $<node>$);
 			insert(0, pars, parents); /* É removido dentro de declr_fntail */
 		} declr_fntail {
-			POP_CONTEXT;
+			if (current_context->parent == context) {
+				POP_CONTEXT;
+			}
 			$$ = $<node>4;
 		}
 	/* Erros */
@@ -462,7 +509,7 @@ parlist: %empty
 	;
 
 partail: %empty
-	| ',' TYPE ID partail
+	| ',' TYPE ID
 		{
 			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_DECLR));
 			add_child($2, $<node>$);
@@ -481,7 +528,7 @@ partail: %empty
 			}
 
 			add_child($<node>$, parents->first->value);
-		}
+		} partail
 	/* Erros */
 	| TYPE ID partail
 		{
@@ -496,6 +543,7 @@ partail: %empty
 
 forargs: TYPE ID '=' exp
 		{
+			/* TODO: Adicionar no contexto */
 			node_t arg = create_node(create_syn_val(SYN_TAG, TOK_DECLR_INIT));
 			add_child($1, arg);
 			add_child($2, arg);
@@ -667,7 +715,6 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 				add_child($3, exp);
 			}
 			$$ = exp;
-			/* TODO: colocar para todas */
 			eval_exp_type(exp);
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 		}
@@ -678,6 +725,17 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			insert(0, $<node>$, parents);
 		} fntail {
+			CTX_sym_t maybe_fun =
+				lookup_symbol(SYN_VALUE(FIRSTCHILD_VALUE($1))->name, context);
+			if (maybe_fun == NULL || maybe_fun->type != CTX_FUN) {
+				yyerror(NULL, NULL, NULL);
+				sprintf(
+					syn_errormsg,
+					"Invalid call to \"%s\" (not a function)",
+					SYN_VALUE(FIRSTCHILD_VALUE($1))->name
+					);
+				HANDLE_ERROR(syn_errormsg);
+			}
 			$$ = $<node>2;
 			removeAt(0, parents);
 		}
@@ -731,10 +789,10 @@ fntail: '(' arglist ')'
 				CTX_FUN(fn_sym)->params != NULL) {
 				size_t fn_args_count = fn_syn->children->size - 1;
 				/** TODO: checar in-exp
-				 * Se é uma função que suporta (padrões)
-				 * Separar em elem e set
-				 * Checar se é elem e set??
-				 */
+				* Se é uma função que suporta (padrões)
+				* Separar em elem e set
+				* Checar se é elem e set??
+				*/
 				list_t arg_list = create_list();
 				// printf("=========\n%s\n", fn_name);
 				// MAP({
@@ -779,11 +837,11 @@ fntail: '(' arglist ')'
 	;
 
 arglist: %empty
-	| exp { add_child($1, parents->first->value); } argtail 
+	| exp { add_child($1, parents->first->value); } argtail
 	;
 
 argtail: %empty
-	| ',' exp { add_child($2, parents->first->value); } argtail 
+	| ',' exp { add_child($2, parents->first->value); } argtail
 	;
 
 %%
@@ -801,20 +859,42 @@ void ssprintf(char *target, char *template, ...) {
 }
 
 void print(node_t node, void *data) {
-	/* TODO: talvez tenha ficado muito bagunçado com only_spaces? */
 	print_data_t *data_st = data;
+
 	int *children_count = data_st->children_count;
 
-	int l = level(node);
+	size_t l = level(node);
+
 	int is_last = 1;
 
 	if (!data_st->only_spaces) {
+		node_t lookback = node->parent;
+		node_t last_valid = node->parent, last_valid_child = node;
+
+		if (!data_st->detailed && node->children->size == 1) {
+			return;
+		}
+		if(!data_st->detailed) {
+			size_t folds = 0;
+			int searching = 1;
+			while (lookback != NULL) {
+				if (lookback->children->size > 1) {
+					searching = 0;
+				} else if (++folds && searching) {
+					last_valid_child = last_valid;
+					last_valid = last_valid->parent;
+				}
+				lookback = lookback->parent;
+			}
+			l -= folds;
+		}
+
 		children_count[l - 1] = node->children->size;
 
 		/* Checa se este nó é o último filho */
-		if (node->parent != NULL) {
-			int idx = indexOf(node, node->parent->children);
-			is_last = idx < 0 || idx == node->parent->children->size - 1;
+		if (last_valid != NULL) {
+			int idx = indexOf(last_valid_child, last_valid->children);
+			is_last = idx < 0 || idx == last_valid->children->size - 1;
 		}
 		if (is_last) {
 			/* Desabilita a impressão de TREECHILD */
@@ -822,12 +902,11 @@ void print(node_t node, void *data) {
 		}
 
 		/* Imprime os espaços e TREECHILD necessários */
-		for (int i = 0; i < l - 1; i++) {
+		for (size_t i = 0; i < l - 1; i++) {
 			printf("%s ", children_count[i] ? TREECHILD : " ");
 		}
 		/* Se não é o nó raiz */
-		if (l > 1) {
-			printf( /* NOTE: 6 caracteres no total */
+		if (l > 1) { printf( /* NOTE: 6 caracteres no total */
 				"%s" TREEBRANCH "%s" TREEBRANCH TREELEAF " ",
 				is_last ? TREECHILDLAST : TREECHILDMID,
 				node->children->size ? TREECHILDFIRST : TREEBRANCH
@@ -837,7 +916,7 @@ void print(node_t node, void *data) {
 		data_st->val_print(node);
 		printf("\n");
 	} else {
-		for (int i = 0; i < l; i++) {
+		for (size_t i = 0; i < l; i++) {
 			printf("%s ", children_count[i] ? TREECHILD : " ");
 		}
 		/* NOTE: 4 caracteres */
@@ -855,11 +934,32 @@ void print_syntatic(node_t node) {
 			TREEACCENTCOLOR
 		);
 
+	int is_char = 0;
+	if (SYN_VALUE(node->value)->type == SYN_EXP &&
+		SYN_EXP(node->value)->data_type == CTX_CHAR) {
+		is_char = 1;
+		if (SYN_EXP(node->value)->depth == 1) {
+			is_char = 2;
+		}
+	}
+
+
 	printf(
-		"%s%s" PARSER_CLEARCOLOR,
+		"%s%s%s%s" PARSER_CLEARCOLOR,
 		node->parent == NULL ? "\033[4m" : "",
-		node->parent == NULL ? (char *) node->value : SYN_VALUE(node->value)->name
+		is_char == 1 ? "'" : (is_char == 2 ? "\"" : ""),
+		node->parent == NULL ? (char *) node->value : SYN_VALUE(node->value)->name,
+		is_char == 1 ? "'" : (is_char == 2 ? "\"" : "")
 		);
+
+	if ((SYN_VALUE(node->value)->type == SYN_EXP ||
+		SYN_VALUE(node->value)->type == SYN_EXP_COMP) &&
+		SYN_EXP(node->value)->cast != CTX_INV) {
+		printf(
+			TREEFADECOLOR" (as %s)"PARSER_CLEARCOLOR,
+			data_type_string(SYN_EXP(node->value)->cast)
+			);
+	}
 }
 
 void print_context(node_t node) {
@@ -902,8 +1002,8 @@ void print_context(node_t node) {
 				if (CTX_FUN(sym)->params != NULL) {
 					MAP(
 						printf(
-							"\""TREEACCENTCOLOR"%s"PARSER_CLEARCOLOR"\"%s",
-							CTX_SYM(MAP_val)->id,
+							"%s%s",
+							data_type_string(CTX_SYM(MAP_val)->data_type),
 							MAP_i < CTX_FUN(sym)->params->size - 1 ? ", " : ""
 							)
 					, CTX_FUN(sym)->params);
@@ -1019,10 +1119,99 @@ void init_context(node_t node) {
 
 }
 
+void print_context_table() {
+	/* Cria e popula um conjunto de símbolos */
+	set_t ctx_set = create_set();
+	depth_pre(
+		create_context_table,
+		context,
+		ctx_set,
+		NULL,
+		NULL
+		);
+	/* Só valores pares */
+	int type_len = 10, data_type_len = 6, id_len = 16;
+
+	/* Borda superior */
+	printf(BOX_TOP_LEFT);
+	for (int i = 0; i < type_len; i++) printf(BOX_HOR);
+	printf(BOX_CROSS_TOP);
+	for (int i = 0; i < data_type_len; i++) printf(BOX_HOR);
+	printf(BOX_CROSS_TOP);
+	for (int i = 0; i < id_len; i++) printf(BOX_HOR);
+	printf(BOX_TOP_RIGHT"\n");
+
+	/* Cabeçalho */
+	printf(
+		BOX_VERT"%*s%-*.*s"BOX_VERT"%*s%-*.*s"BOX_VERT"%*s%-*.*s"BOX_VERT"\n",
+			/* Espaços */
+		(int) (type_len - strlen("simbolo ")) / 2, "",
+			/* Título + Espaços */
+		(int) (type_len + strlen("simbolo ")) / 2,
+		type_len, "simbolo",
+			/* Espaços */
+		(int) (data_type_len - strlen("tipo")) / 2, "",
+			/* Título + Espaços */
+		(int) (data_type_len + strlen("tipo")) / 2,
+		data_type_len, "tipo",
+			/* Espaços */
+		(int) (id_len - strlen("identificador ")) / 2, "",
+			/* Título + Espaços */
+		(int) (id_len + strlen("identificador ")) / 2,
+		id_len, "identificador"
+		);
+	/* Separador do cabeçalho */
+	printf(BOX_HEADER_LEFT);
+	for (int i = 0; i < type_len; i++) printf(BOX_HEADER_HOR);
+	printf(BOX_HEADER_MID);
+	for (int i = 0; i < data_type_len; i++) printf(BOX_HEADER_HOR);
+	printf(BOX_HEADER_MID);
+	for (int i = 0; i < id_len; i++) printf(BOX_HEADER_HOR);
+	printf(BOX_HEADER_RIGHT"\n");
+	/* Valores da tabela */
+	MAP({
+		/* Obtém o símbolo atual */
+		CTX_sym_t sym =
+			CTX_SYM(SET_ELEM(MAP_val)->value);
+		printf(BOX_VERT);
+		/* Imprime o tipo do símbolo */
+		printf(
+			"%-*.*s"BOX_VERT,
+			type_len,
+			type_len,
+			type_string(sym->type)
+			);
+		/* Imprime o tipo de dados do símbolo */
+		printf(
+			"%-*.*s"BOX_VERT,
+			data_type_len,
+			data_type_len,
+			data_type_string(sym->data_type)
+			);
+		/* Imprime o identificador do símbolo */
+		printf(
+			"%-*.*s"BOX_VERT"\n",
+			id_len,
+			id_len,
+			sym->id
+			);
+	}, ctx_set);
+	/* Borda inferior */
+	printf(BOX_BOT_LEFT);
+	for (int i = 0; i < type_len; i++) printf(BOX_HOR);
+	printf(BOX_CROSS_BOT);
+	for (int i = 0; i < data_type_len; i++) printf(BOX_HOR);
+	printf(BOX_CROSS_BOT);
+	for (int i = 0; i < id_len; i++) printf(BOX_HOR);
+	printf(BOX_BOT_RIGHT"\n");
+	/* Limpa o conjunto de símbolos */
+	delete_set(ctx_set);
+}
+
 int main(int argc, char **argv) {
-	int show_context = 1, show_syntatic_tree = 1, show_table = 0;
+	int show_context = 1, show_syntatic_tree = 1, show_table = 0, show_detailed = 0;
 	char c, *farg = NULL;
-	while ((c = getopt(argc, argv, "CSth")) != -1) {
+	while ((c = getopt(argc, argv, "CStdh")) != -1) {
 		switch (c) {
 		case 'C':
 			show_context = 0;
@@ -1033,12 +1222,18 @@ int main(int argc, char **argv) {
 		case 't':
 			show_table = 1;
 			break;
+		case 'd':
+			show_detailed = 1;
+			break;
 		case 'h':
 			printf("%s [OPTIONS] FILE [OPTIONS]\n", argv[0]);
 			printf("\t-C\tinibe a impressão da árvore de contexto\n");
 			printf("\t-S\tinibe a impressão da árvore sintática de contexto\n");
-			printf("\t-t\timprime uma tabela com cada símbolo encontrado de nome diferente\n");
-			printf("\t-h\timprime esta ajuda e sai\n");
+			printf(
+				"\t-t\timprime uma tabela com cada símbolo encontrado de "
+				"nome diferente\n");
+			printf("\t-d\timprime a árvore sintática com detalhes\n");
+			printf("\t-h\timprime esta mensagem de ajuda e sai\n");
 			exit(EXIT_SUCCESS);
 		case '?':
 			if (isprint(optopt)) {
@@ -1077,7 +1272,9 @@ int main(int argc, char **argv) {
 
 	int ret;
 	if ((ret = yyparse(&max, children_count))) {
-		fprintf(stderr, "Unhandled error while parsing\n");
+		yyerror(NULL, NULL, NULL);
+		sprintf(syn_errormsg, "Unexpected end of file");
+		HANDLE_ERROR(syn_errormsg);
 	}
 
 	/** ============== Finalizando valores ================= **/
@@ -1097,109 +1294,19 @@ int main(int argc, char **argv) {
 		print_data_t ctx_data = {                           /**/
 			children_count,                                 /**/
 			print_context,                                  /**/
-			0                                               /**/
+			0,                                              /**/
+			1                                               /**/
 			};                                              /**/
 		depth_pre(print, context, &ctx_data, NULL, NULL);   /**/
 		free(children_count);                               /**/
 	}                                                       /**/
+                                                            /**/
 	/* =============== INÍCIO DA TABELA =================*/ /**/
-	/* TODO: isso é temporário, depois tem que tirar */     /**/
 	if (show_table) {                                       /**/
-		set_t ctx_set = create_set();                       /**/
-		depth_pre(                                          /**/
-			create_context_table,                           /**/
-			context,                                        /**/
-			ctx_set,                                        /**/
-			NULL,                                           /**/
-			NULL                                            /**/
-			);                                              /**/
-		/* Só valores pares */                              /**/
-		int type_len = 10, data_type_len = 6, id_len = 16;  /**/
-		printf(BOX_TOP_LEFT);                               /**/
-		for (int i = 0; i < type_len; i++) {                /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_TOP);                              /**/
-		for (int i = 0; i < data_type_len; i++) {           /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_TOP);                              /**/
-		for (int i = 0; i < id_len; i++) {                  /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_TOP_RIGHT"\n");                          /**/
-		printf(                                             /**/
-			BOX_VERT                                        /**/
-			"%*s%-*.*s"                                     /**/
-			BOX_VERT                                        /**/
-			"%*s%-*.*s"                                     /**/
-			BOX_VERT                                        /**/
-			"%*s%-*.*s"                                     /**/
-			BOX_VERT                                        /**/
-			"\n",                                           /**/
-			(int) (type_len - strlen("simbolo ")) / 2, "",  /**/
-			(int) (type_len + strlen("simbolo ")) / 2,      /**/
-			type_len, "simbolo",                            /**/
-			(int) (data_type_len - strlen("tipo")) / 2, "", /**/
-			(int) (data_type_len + strlen("tipo")) / 2,     /**/
-			data_type_len, "tipo",                          /**/
-			(int) (id_len - strlen("identificador ")) / 2,  /**/
-			"",                                             /**/
-			(int) (id_len + strlen("identificador ")) / 2,  /**/
-			id_len, "identificador"                         /**/
-			);                                              /**/
-		printf(BOX_CROSS_LEFT);                             /**/
-		for (int i = 0; i < type_len; i++) {                /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_IN);                               /**/
-		for (int i = 0; i < data_type_len; i++) {           /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_IN);                               /**/
-		for (int i = 0; i < id_len; i++) {                  /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_RIGHT"\n");                        /**/
-		MAP({                                               /**/
-			CTX_sym_t sym =                                 /**/
-				CTX_SYM(SET_ELEM(MAP_val)->value);          /**/
-			printf(BOX_VERT);                               /**/
-			printf(                                         /**/
-				"%-*.*s"BOX_VERT,                           /**/
-				type_len,                                   /**/
-				type_len,                                   /**/
-				type_string(sym->type)                      /**/
-				);                                          /**/
-			printf(                                         /**/
-				"%-*.*s"BOX_VERT,                           /**/
-				data_type_len,                              /**/
-				data_type_len,                              /**/
-				data_type_string(sym->data_type)            /**/
-				);                                          /**/
-			printf(                                         /**/
-				"%-*.*s"BOX_VERT"\n",                       /**/
-				id_len,                                     /**/
-				id_len,                                     /**/
-				sym->id                                     /**/
-				);                                          /**/
-		}, ctx_set);                                        /**/
-		printf(BOX_BOT_LEFT);                               /**/
-		for (int i = 0; i < type_len; i++) {                /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_BOT);                              /**/
-		for (int i = 0; i < data_type_len; i++) {           /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_CROSS_BOT);                              /**/
-		for (int i = 0; i < id_len; i++) {                  /**/
-			printf(BOX_HOR);                                /**/
-		}                                                   /**/
-		printf(BOX_BOT_RIGHT"\n");                          /**/
-		delete_set(ctx_set);                                /**/
+		print_context_table();                              /**/
 	}                                                       /**/
 	/* ================= FIM DA TABELA ==================*/ /**/
+                                                            /**/
 	/* Limpa o contexto */                                  /**/
 	depth_pos(free_context, context, NULL, NULL, NULL);     /**/
 	delete_node(context);                                   /**/
@@ -1217,7 +1324,8 @@ int main(int argc, char **argv) {
 		print_data_t syn_data = {                           /**/
 			children_count,                                 /**/
 			print_syntatic,                                 /**/
-			0                                               /**/
+			0,                                              /**/
+			show_detailed                                   /**/
 			};                                              /**/
 		depth_pre(print, root, &syn_data, NULL, NULL);      /**/
 		free(children_count);                               /**/

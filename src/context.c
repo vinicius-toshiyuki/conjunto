@@ -77,9 +77,6 @@ int has_symbol(char *id, list_t local_ctx) {
   return -1;
 }
 
-int cast_to(int type, CTX_sym_t sym) { exit(EXIT_FAILURE); }
-void __cast_int_to_float(CTX_sym_t sym) { exit(EXIT_FAILURE); }
-
 const char *type_string(int type) {
   switch (type) {
   case CTX_FUN:

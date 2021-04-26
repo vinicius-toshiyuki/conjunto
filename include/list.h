@@ -175,7 +175,4 @@ void delete_list(list_t list);
  */
 void *free_list(int idx, void *value);
 
-/* TODO: Iterator com índice? Para não ter que mexer mesmo com elem_t e permitir
- * organizar a lista em buckets */
-
 #endif

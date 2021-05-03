@@ -98,7 +98,7 @@ void *removeAt(int idx, list_t list) {
 
 void *elementAt(int idx, list_t list) {
   if (idx < 0 || idx >= list->size) {
-    fprintf(stderr, "Invalid index in elementAt()\n");
+    fprintf(stderr, "Invalid index in elementAt(): %d\n", idx);
     exit(EXIT_FAILURE);
   }
   void *ret = NULL;

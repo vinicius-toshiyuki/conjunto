@@ -13,4 +13,4 @@ set subsum(set s, int target, int cur_sum, set ans) {
        return EMPTY;
     }
 }
-int main() {}
+int main() { EMPTY == EMPTY;}

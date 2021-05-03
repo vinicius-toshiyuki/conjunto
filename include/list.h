@@ -119,6 +119,8 @@ void *reduce(void (*action)(void *reduction, void *value), void *value,
       MAP_val = MAP_it->value;                                                 \
       MAP_code;                                                                \
       MAP_it = MAP_it->next;                                                   \
+      if (MAP_val)                                                             \
+        ;                                                                      \
     }                                                                          \
   }
 
@@ -154,6 +156,12 @@ void *reduce(void (*action)(void *reduction, void *value), void *value,
  * void é retornado.
  */
 #define ITER_TOP(ITER_iter) (ITER_iter.cur->value)
+
+/**
+ * Retorna o mesmo valor retornado pela última chamada de ITER().
+ * O valor não é dereferenciado.
+ */
+#define ITER_OLD(ITER_iter) (ITER_iter.value)
 
 /**
  * Checa se o iterador ainda tem itens.

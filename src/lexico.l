@@ -17,6 +17,7 @@
 		}                                            \
 		if (yy_act != lastrule) {                    \
 			extern list_t err_loc;                   \
+			extern int got_error;                    \
 			SET_ERROR_LOCATION(lnum, lcol, err_loc); \
 			char *filename = filename_lex;           \
 			HANDLE_ERROR(errormsg);                  \
@@ -155,7 +156,7 @@ W [ \t\n]+
 %x expect_err
 
 	char errormsg[512] = "", *filename_lex;
-	int noupdate = -1, reading_string = 0;
+	int noupdate = -1, reading_string = 0, reading_char = 0;
 	int lnum = 1, lcol = 0, lastrule = -1, errlnum = -1, errlcol = -1;
 
 %%
@@ -163,7 +164,15 @@ W [ \t\n]+
 	/* Consome espaços */
 <*>"/*"([^*]|"*"[^/])*"*/" /* Consome comentários */
 <*>"//"[^\n]*              /* Consome comentários */
-<*>{W} if (!reading_string) BEGIN(INITIAL); else yymore();
+<*>{W} {
+	if (!reading_string && !reading_char) {
+		BEGIN(INITIAL);
+	} else if (reading_char) {
+		REJECT;
+	} else {
+		yymore();
+	}
+}
 
 <INITIAL,expect_err>[\(\){};,] {
 	BEGIN(INITIAL);
@@ -342,6 +351,7 @@ EMPTY RETURNUPDATE EMPTY;
 
 ' {
 	/* TODO: isso está dando errado??? -> /\("\\'"|{ESCAPE}|[^'\\]\)' */
+	reading_char = 1;
 	BEGIN(expect_char);
 	yymore();
 }
@@ -352,6 +362,7 @@ EMPTY RETURNUPDATE EMPTY;
 	yymore();
 }
 <expect_char_end>' {
+	reading_char = 0;
 	BEGIN(INITIAL);
 	char *val = strdup(yytext);
 

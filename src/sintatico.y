@@ -79,20 +79,26 @@
 #define POP_CONTEXT \
 	current_context = current_context->parent;
 
-#define ADD_CONTEXT(SYM_TYPE, ID_CONTEXT, TYPE_CONTEXT) {            \
-	char *TYPE_NAME = TYPE_CONTEXT;                                  \
-	char *ID_NAME = ID_CONTEXT;                                      \
-	CTX_sym_t MAYBE_FUN = lookup_symbol(ID_NAME, context);           \
-	if (has_symbol(ID_NAME, current_context->value) != 0 &&          \
-		(MAYBE_FUN == NULL || MAYBE_FUN->type != CTX_FUN)) {         \
-		int ENTRYTYPE = data_type_code(TYPE_NAME);                   \
-		CTX_sym_t SYM = create_symbol(SYM_TYPE, ID_NAME, ENTRYTYPE); \
-		append(SYM, current_context->value);                         \
-	} else {                                                         \
-		yyerror(NULL, NULL, NULL);                                   \
-		ssprintf(syn_errormsg, "Redeclaration of \"%s\"", ID_NAME);  \
-		HANDLE_ERROR(syn_errormsg);                                  \
-	}                                                                \
+#define ADD_CONTEXT(SYM_TYPE, ID_CONTEXT, TYPE_CONTEXT) {           \
+	char *TYPE_NAME = TYPE_CONTEXT;                                 \
+	char *ID_NAME = ID_CONTEXT;                                     \
+	CTX_sym_t MAYBE_FUN = lookup_symbol(ID_NAME, context);          \
+	if (has_symbol(ID_NAME, current_context->value) != 0 &&         \
+		(MAYBE_FUN == NULL || MAYBE_FUN->type != CTX_FUN)) {        \
+		int ENTRYTYPE = data_type_code(TYPE_NAME);                  \
+		CTX_sym_t SYM = create_symbol(                              \
+			SYM_TYPE,                                               \
+			ID_NAME,                                                \
+			ENTRYTYPE,                                              \
+			lnum,                                                   \
+			lcol                                                    \
+			);                                                      \
+		append(SYM, current_context->value);                        \
+	} else {                                                        \
+		yyerror(NULL, NULL, NULL);                                  \
+		ssprintf(syn_errormsg, "Redeclaration of \"%s\"", ID_NAME); \
+		HANDLE_ERROR(syn_errormsg);                                 \
+	}                                                               \
 }
 
 /* ============================================================== */
@@ -110,13 +116,13 @@ int yyerror(int *max, int *children_count, char *s);
 int yylex();
 
 void ssprintf(char *target, char *template, ...);   /* É a mesma coisa do sprintf()                    */
-void print(node_t node, void *data);                /* Imprime um nó de uma árvore                     */
+int print(node_t node, void *data);                 /* Imprime um nó de uma árvore                     */
 void print_syntatic(node_t value);                  /* Imprime o valor de um nó da árvore sintática    */
 void print_context(node_t value);                   /* Imprime o valor de um nó do contexto            */
-void max_level(node_t node, void *data);            /* Obtém a profundidade de uma árvore              */
-void create_context_table(node_t node, void *data); /* Popula um set com os símbolos do contexto       */
-void free_values(node_t node, void *data);          /* Libera a memória do valor de um nó              */
-void free_context(node_t node, void *data);         /* Libera a memória de um context (não o contexto) */
+int max_level(node_t node, void *data);             /* Obtém a profundidade de uma árvore              */
+int create_context_table(node_t node, void *data);  /* Popula um set com os símbolos do contexto       */
+int free_values(node_t node, void *data);           /* Libera a memória do valor de um nó              */
+int free_context(node_t node, void *data);          /* Libera a memória de um context (não o contexto) */
 void init_context(node_t node);                     /* Inicia o contexto com funções integradas        */
 
 extern int lnum, lcol; /* Vêm do lexico.l */
@@ -132,6 +138,12 @@ list_t parents; /* Auxilia na inserção na árvore */
 node_t current_context;
 node_t context; /* Árvore de contextos */
 
+/**
+ * Indica se um erro foi encontrado durante a
+ * construção da árvore sintática e de contextos
+ */
+int got_error = 0;
+
 %}
 /* ======================= FIM DO PREFÁCIO ====================== */
 
@@ -141,6 +153,7 @@ node_t context; /* Árvore de contextos */
 #include <syntatic_node.h>
 #include <eval.h>
 #include <set.h>
+#include <translation.h>
 }
 
 // %define api.value.type { node_t }
@@ -355,7 +368,9 @@ declaration: TYPE ID
 			add_child($2, $<node>$);
 			if (current_context == context) {
 				ADD_CONTEXT(CTX_FUN, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE($1))->name);
+				CTX_sym_t fun = lookup_symbol(SYN_EXP(child_at(0, $2)->value)->name, current_context);
 				PUSH_CONTEXT;
+				CTX_FUN(fun)->context = current_context;
 			} else {
 				yyerror(NULL, NULL, NULL);
 				sprintf(
@@ -598,6 +613,8 @@ fortail: ';' exp
 idlist: %empty
 	| ',' ID
 		{
+			node_t type_node = child_at(0, parents->first->value);
+			ADD_CONTEXT(CTX_VAR, SYN_EXP(FIRSTCHILD_VALUE($2))->name, SYN_TYPE(FIRSTCHILD_VALUE(type_node))->name);
 			add_child($2, parents->first->value);
 		} idlist
 	| ',' error
@@ -680,13 +697,14 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 				midop = (char *) realloc(midop, strlen(midop) + 1);
 				free(SYN_VALUE($2->value)->name);
 				SYN_VALUE($2->value)->name = strdup(opassign);
+				SYN_OP($2->value)->op_type = OP_ASSIGN;
 				/* Cria uma expresão intermediária usando midop */
 				node_t midexp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
 				node_t midoptag = create_node(create_syn_val(SYN_TAG, TOK_OPBIN));
 				add_child(create_node(create_syn_val(SYN_OP, midop)), midoptag);
 				init_syn_op(
 					operator_code(midop),
-					((node_t)midoptag->children->first->value)->value
+					child_at(0, midoptag)->value
 					);
 				/* Cria uma cópia do id */
 				node_t id_copy = create_node(create_syn_val(SYN_TAG, TOK_ID));
@@ -720,7 +738,7 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 		}
 	| ID
 		{
-			$<node>$ = create_node(create_syn_val(SYN_TAG, TOK_FN));
+			$<node>$ = create_node(create_syn_val(SYN_FUN, TOK_FN));
 			add_child($1, $<node>$);
 			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			insert(0, $<node>$, parents);
@@ -816,6 +834,23 @@ fntail: '(' arglist ')'
 						int par_type = par->data_type;
 						int arg_type = eval_exp_type(ITER(it_args, node_t, NULL));
 
+						/** Checa se a in-expression de exists() tem uma variável
+						  * na esquerda
+						  */
+						if (strcmp(fn_name, BUILTIN_EXISTS) == 0 &&
+							arg_type == CTX_INEXP &&
+							strcmp(
+								SYN_VALUE(FIRSTCHILD_VALUE(ITER_OLD(it_args)))->name,
+								TOK_ID
+								) != 0
+						) {
+							yyerror(NULL, NULL, NULL);
+							ssprintf(
+								syn_errormsg,
+								"Left-hand side of expression must be an identifier"
+								);
+							HANDLE_ERROR(syn_errormsg);
+						}
 						if (!can_cast(arg_type, par_type)) {
 							yyerror(NULL, NULL, NULL);
 							ssprintf(
@@ -858,7 +893,7 @@ void ssprintf(char *target, char *template, ...) {
 	va_end(ap);
 }
 
-void print(node_t node, void *data) {
+int print(node_t node, void *data) {
 	print_data_t *data_st = data;
 
 	int *children_count = data_st->children_count;
@@ -872,7 +907,7 @@ void print(node_t node, void *data) {
 		node_t last_valid = node->parent, last_valid_child = node;
 
 		if (!data_st->detailed && node->children->size == 1) {
-			return;
+			return 0;
 		}
 		if(!data_st->detailed) {
 			size_t folds = 0;
@@ -925,6 +960,7 @@ void print(node_t node, void *data) {
 			node->children->size ? TREECHILD : " "
 			);
 	}
+	return 0;
 }
 
 void print_syntatic(node_t node) {
@@ -1010,6 +1046,9 @@ void print_context(node_t node) {
 				}
 				printf(")");
 			}
+			if (sym->lnum >= 0 && sym->lcol > 0) {
+				printf(TREEFADECOLOR" @%d:%d"PARSER_CLEARCOLOR, sym->lnum, sym->lcol);
+			}
 			if (it->next != NULL) {
 				printf("\n");
 				print(node, &data);
@@ -1019,13 +1058,14 @@ void print_context(node_t node) {
 	free(children_count);
 }
 
-void max_level(node_t node, void *data) {
+int max_level(node_t node, void *data) {
 	int *max = (int *) data;
 	int l = level(node);
 	if (*max < l) *max = l;
+	return 0;
 }
 
-void create_context_table(node_t node, void *data) {
+int create_context_table(node_t node, void *data) {
 	set_t ctx_set = data;
 	MAP({
 		set_elem_t el = create_set_elem(0, MAP_val, compare_symbol, NULL);
@@ -1033,20 +1073,23 @@ void create_context_table(node_t node, void *data) {
 			delete_set_elem(el);
 		}
 	}, node->value);
+	return 0;
 }
 
-void free_values(node_t node, void *data) {
+int free_values(node_t node, void *data) {
 	/* node_t -> SYN_value_t  */
 	if (strcmp(node->value, filename)) {
 		delete_syn_val(node->value);
 	}
+	return 0;
 }
 
-void free_context(node_t node, void *data) {
+int free_context(node_t node, void *data) {
 	MAP({
 		delete_symbol(MAP_val);
 	}, node->value);
 	delete_list(node->value);
+	return 0;
 }
 
 void init_context(node_t node) {
@@ -1061,7 +1104,7 @@ void init_context(node_t node) {
 	*/
 	CTX_sym_t sym = NULL;
 
-	CTX_sym_t write   = create_symbol(CTX_FUN, "write"  , CTX_INT);
+	CTX_sym_t write   = create_symbol(CTX_FUN, BUILTIN_WRITE, CTX_INT, -1, -1);
 	append(write  , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "object", "elem");
@@ -1069,7 +1112,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(write)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t writeln = create_symbol(CTX_FUN, "writeln", CTX_INT);
+	CTX_sym_t writeln = create_symbol(CTX_FUN, BUILTIN_WRITELN, CTX_INT, -1, -1);
 	append(writeln, node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "object", "elem");
@@ -1077,7 +1120,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(writeln)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t read    = create_symbol(CTX_FUN, "read"   , CTX_INT);
+	CTX_sym_t read    = create_symbol(CTX_FUN, BUILTIN_READ, CTX_INT, -1, -1);
 	append(read   , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "output", "elem");
@@ -1085,7 +1128,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(read)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t is_set  = create_symbol(CTX_FUN, "is_set" , CTX_INT);
+	CTX_sym_t is_set  = create_symbol(CTX_FUN, BUILTIN_ISSET, CTX_INT, -1, -1);
 	append(is_set , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "element", "elem");
@@ -1093,7 +1136,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(is_set)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t add     = create_symbol(CTX_FUN, "add"    , CTX_SET);
+	CTX_sym_t add     = create_symbol(CTX_FUN, BUILTIN_ADD, CTX_SET, -1, -1);
 	append(add    , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
@@ -1101,7 +1144,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(add)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t remove  = create_symbol(CTX_FUN, "remove" , CTX_SET);
+	CTX_sym_t remove  = create_symbol(CTX_FUN, BUILTIN_REMOVE, CTX_SET, -1, -1);
 	append(remove , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
@@ -1109,7 +1152,7 @@ void init_context(node_t node) {
 	append(sym, (CTX_FUN(remove)->params = create_list()));
 	POP_CONTEXT;
 
-	CTX_sym_t exists  = create_symbol(CTX_FUN, "exists" , CTX_ELEM);
+	CTX_sym_t exists  = create_symbol(CTX_FUN, BUILTIN_EXISTS, CTX_ELEM, -1, -1);
 	append(exists , node->value);
 	PUSH_CONTEXT;
 	ADD_CONTEXT(CTX_VAR, "expression", "in-expression");
@@ -1275,6 +1318,11 @@ int main(int argc, char **argv) {
 		yyerror(NULL, NULL, NULL);
 		sprintf(syn_errormsg, "Unexpected end of file");
 		HANDLE_ERROR(syn_errormsg);
+	}
+
+		/* Traduz para TAC */
+	if (!got_error) {
+		translate(root, context);
 	}
 
 	/** ============== Finalizando valores ================= **/

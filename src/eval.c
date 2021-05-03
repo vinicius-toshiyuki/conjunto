@@ -14,6 +14,7 @@ extern int lnum, lcol;
 extern char filename[FILENAMESIZE + 1];
 extern char syn_errormsg[NAMESIZE + 1];
 extern list_t err_loc;
+extern int got_error;
 
 int eval_exp_type(node_t exp) {
   if (exp == NULL) {

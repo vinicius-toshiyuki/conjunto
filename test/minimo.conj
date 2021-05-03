@@ -1,9 +1,14 @@
 set copy_set(set s, int argumento2) {
     set ans;
     { int a; }
-	elem x;
-    forall(x in s) add(x in ans);
+	1 + 2;
+    elem x;
+	exists(x in ans);
+    forall(x in s) add(1 in ans);
     return ans;
 }
-int main() {}
+int main() {
+
+	write(4);
+}
 

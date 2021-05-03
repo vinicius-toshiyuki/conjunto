@@ -102,6 +102,7 @@ typedef struct err_location {
 
 #define HANDLE_ERROR(ERR_MSG)                                                  \
   {                                                                            \
+    got_error = 1;                                                             \
     err_loc_t *loc = removeAt(0, err_loc);                                     \
     fprintf(stderr, ERR_LOCATION, filename, loc->errlnum, loc->errlcol);       \
     fprintf(stderr, ERR_TEMPLATE, ERR_MSG);                                    \
@@ -144,6 +145,30 @@ typedef struct err_location {
 #define TOK_TYPE "<type>"
 #define TOK_DECLR_FN "<declr_fn>"
 #define TOK_DECLR_INIT "<declr_init>"
+
+/* Built-ins */
+#define BUILTIN_WRITE "write"
+#define BUILTIN_WRITELN "writeln"
+#define BUILTIN_READ "read"
+#define BUILTIN_ISSET "is_set"
+#define BUILTIN_ADD "add"
+#define BUILTIN_REMOVE "remove"
+#define BUILTIN_EXISTS "exists"
+
+#define IS_BUILTIN(fun_name)                                                   \
+  (strcmp(fun_name, BUILTIN_WRITE) == 0 ||                                     \
+   strcmp(fun_name, BUILTIN_WRITELN) == 0 ||                                   \
+   strcmp(fun_name, BUILTIN_READ) == 0 ||                                      \
+   strcmp(fun_name, BUILTIN_ISSET) == 0 ||                                     \
+   strcmp(fun_name, BUILTIN_ADD) == 0 ||                                       \
+   strcmp(fun_name, BUILTIN_REMOVE) == 0 ||                                    \
+   strcmp(fun_name, BUILTIN_EXISTS) == 0)
+
+/* Tipos */
+#define TYPE_INT "int"
+#define TYPE_FLOAT "float"
+#define TYPE_ELEM "elem"
+#define TYPE_SET "set"
 
 #ifdef __GNUC__
 #define DEPRECATED(fun) fun __attribute__((deprecated))

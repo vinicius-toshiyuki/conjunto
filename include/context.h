@@ -31,6 +31,8 @@ typedef struct ctx_symbol {
   int type;      /* Tipo do símbolo                    */
   char *id;      /* Identificador do símbolo           */
   int data_type; /* Tipo primitivo do valor do símbolo */
+  int lnum;      /* Linha onde foi declarado           */
+  int lcol;      /* Coluna onde foi declarado          */
 } * CTX_sym_t;
 
 /**
@@ -41,6 +43,8 @@ typedef struct ctx_variable {
   int type;
   char *id;
   int data_type;
+  int lnum;
+  int lcol;
   int secondary_data_type; /* Tipo secundário da variável polimórfica   */
   void *value;             /* Valor da variável (pode ser NULL)         */
   int depth;               /* Número de dimensões (> 0 é ponteiro)      */
@@ -57,7 +61,10 @@ typedef struct ctx_function {
   int type;
   char *id;
   int data_type;
-  list_t params; /* Símbolos dos parâmetros */
+  int lnum;
+  int lcol;
+  list_t params;  /* Símbolos dos parâmetros */
+  node_t context; /* Contexto criado para a função */
 } * CTX_fun_t;
 
 /**
@@ -76,7 +83,7 @@ typedef struct ctx_function {
 /**
  * Cria um símbolo do tipo `type`.
  */
-CTX_sym_t create_symbol(int type, char *id, int data_type);
+CTX_sym_t create_symbol(int type, char *id, int data_type, int lnum, int lcol);
 
 /**
  * Libera a memória usada por um símbolo.

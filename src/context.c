@@ -4,7 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-CTX_sym_t create_symbol(int type, char *id, int data_type) {
+CTX_sym_t create_symbol(int type, char *id, int data_type, int lnum, int lcol) {
   void *sym = NULL;
   switch (type) {
   case CTX_VAR:
@@ -17,11 +17,14 @@ CTX_sym_t create_symbol(int type, char *id, int data_type) {
   case CTX_FUN:
     sym = malloc(sizeof(struct ctx_function));
     CTX_FUN(sym)->params = NULL;
+    CTX_FUN(sym)->context = NULL;
     break;
   }
   CTX_SYM(sym)->type = type;
   CTX_SYM(sym)->id = id;
   CTX_SYM(sym)->data_type = data_type;
+  CTX_SYM(sym)->lnum = lnum;
+  CTX_SYM(sym)->lcol = lcol;
   return sym;
 }
 
@@ -105,6 +108,8 @@ const char *data_type_string(int type) {
     return "in-expression";
   case CTX_UNK:
     return "unknown";
+  case CTX_INV:
+    return "invalid";
   default:
     fprintf(stderr, "Invalid type code in data_type_string(): %d\n", type);
     exit(EXIT_FAILURE);
@@ -137,6 +142,8 @@ const int data_type_code(const char *type) {
     return CTX_INEXP;
   } else if (strcmp(type, "unknown") == 0) {
     return CTX_UNK;
+  } else if (strcmp(type, "invalid") == 0) {
+    return CTX_INV;
   } else {
     fprintf(stderr, "Invalid type string in data_type_code(): %s\n", type);
     exit(EXIT_FAILURE);

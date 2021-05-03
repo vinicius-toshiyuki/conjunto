@@ -7,7 +7,7 @@
 /**
  * Indica os tipos de valores da árvore sintática.
  */
-enum { SYN_TAG = 0, SYN_EXP, SYN_EXP_COMP, SYN_OP, SYN_TYPE };
+enum { SYN_TAG = 0, SYN_FUN, SYN_EXP, SYN_EXP_COMP, SYN_OP, SYN_TYPE };
 
 enum {
   OP_UNK = -1,
@@ -82,6 +82,11 @@ typedef struct syn_tag {
   char *name;
   int type;
 } * SYN_tag_t;
+
+/**
+ * Armazena uma chamada de função.
+ */
+typedef SYN_tag_t SYN_fun_t;
 
 /**
  * Armazena um operador da árvore sintática.
@@ -177,6 +182,6 @@ int operator_code(const char *string);
  */
 void cast_to(int type, node_t node);
 
-void __cast_to(node_t node, void *data);
+int __cast_to(node_t node, void *data);
 
 #endif

@@ -126,6 +126,7 @@ typedef struct err_location {
 #define TOK_WHILE "<while>"
 #define TOK_FORALL "<forall>"
 #define TOK_FOR "<for>"
+#define TOK_BREAK "<break>"
 #define TOK_RETURN "<return>"
 #define TOK_BLOCK "<block>"
 #define TOK_EMPTYCMD "<emptycmd>"
@@ -170,10 +171,14 @@ typedef struct err_location {
 #define TYPE_ELEM "elem"
 #define TYPE_SET "set"
 
+#define FUN_MAIN "main"
+
 #ifdef __GNUC__
 #define DEPRECATED(fun) fun __attribute__((deprecated))
 #else
 #define DEPRECATED(fun) fun
 #endif
+
+char *unscape(const char *str);
 
 #endif

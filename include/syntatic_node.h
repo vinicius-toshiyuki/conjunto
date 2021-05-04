@@ -40,8 +40,8 @@ enum {
   OP_STAR,
   OP_DIV,
   OP_MOD,
-  OP_UNI_INC,
-  OP_UNI_DEC,
+  OP_UNI_INC, /* + 5 = OP_POS_INC */
+  OP_UNI_DEC, /* + 5 = OP_POS_DEC */
   OP_UNI_REF,
   OP_UNI_NEG,
   OP_UNI_BIT_NEG,

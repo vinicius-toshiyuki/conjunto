@@ -45,7 +45,7 @@
 extern int yydebug;
 #endif
 /* "%code requires" blocks.  */
-#line 150 "sintatico.y"
+#line 163 "sintatico.y"
 
 #include <tree.h>
 #include <context.h>
@@ -87,9 +87,10 @@ extern int yydebug;
     WHILE = 277,                   /* WHILE  */
     FORALL = 278,                  /* FORALL  */
     FOR = 279,                     /* FOR  */
-    ELSE = 280,                    /* ELSE  */
-    RETURN = 281,                  /* RETURN  */
-    EMPTY = 282                    /* EMPTY  */
+    BREAK = 280,                   /* BREAK  */
+    ELSE = 281,                    /* ELSE  */
+    RETURN = 282,                  /* RETURN  */
+    EMPTY = 283                    /* EMPTY  */
   };
   typedef enum yytokentype yytoken_kind_t;
 #endif
@@ -120,19 +121,20 @@ extern int yydebug;
 #define WHILE 277
 #define FORALL 278
 #define FOR 279
-#define ELSE 280
-#define RETURN 281
-#define EMPTY 282
+#define BREAK 280
+#define ELSE 281
+#define RETURN 282
+#define EMPTY 283
 
 /* Value type.  */
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 160 "sintatico.y"
+#line 173 "sintatico.y"
 
 	node_t node;
 
-#line 136 "sintatico.h"
+#line 138 "sintatico.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

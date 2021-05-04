@@ -53,6 +53,7 @@ char string_to_char(char *str, char **endptr) {
 	}
 	if (*str == '\\') {
 		long val = -1;
+		c = '\r';
 		switch (*++str) {
 		case 'a': c--;
 		case 'b': c--;
@@ -142,7 +143,7 @@ OPARIT ("*"|"/"|"%"|"+"|"-")
 OPCOMP ("<="|">="|"<"|">"|"!="|"==")
 OPBOOL ("&&"|"||")
 OPBIT ("&"|"^"|"|")
-OPUNI ("+"|"-"|"!"|"~"|"++"|"--"|"*"|"&")
+OPUNI ("+"|"-"|"!"|"~"|"*"|"&")
 OPBIN ({OPARIT}|{OPCOMP}|{OPBOOL}|{OPBIT}|"in"|"<<"|">>")
 OPASSIGN (=|{OPARIT}=|{OPBIT}=)
 OPTER ("?"|":")
@@ -184,6 +185,7 @@ else   RETURNUPDATE ELSE;
 while  RETURNUPDATE WHILE;
 forall RETURNUPDATE FORALL;
 for    RETURNUPDATE FOR;
+break  RETURNUPDATE BREAK;
 return RETURNUPDATE RETURN;
 
 EMPTY RETURNUPDATE EMPTY;
@@ -323,7 +325,8 @@ EMPTY RETURNUPDATE EMPTY;
 }
 <expect_string>"\\\""   |
 <expect_string>{ESCAPE} |
-<expect_string>[^"\\]   { yymore(); }
+<expect_string>[^"\\]   { yymore(); 
+}
 <expect_string>\" {
 	BEGIN(INITIAL);
 	reading_string = 0;

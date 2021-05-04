@@ -72,7 +72,7 @@ void *removeAt(int idx, list_t list) {
     } else {
       list->first->prev = NULL;
     }
-  } else if (idx == list->size) {
+  } else if (idx == list->size - 1) {
     elem = list->last;
     list->last = list->last->prev;
     if (list->last == NULL) {

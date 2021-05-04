@@ -1,6 +1,10 @@
 int teste(int b, int c) {
 	return 2 * b;
 }
+float alo() {
+	return teste(3, 3);
+	return 0;
+}
 int main() {
 	int i;
 	// i = teste(3 + 1, 2);
@@ -9,5 +13,6 @@ int main() {
 		writeln(++i);
 	}
 	writeln(1.2 + i + 10 * -2);
+	writeln(alo());
 	return 0.2;
 }

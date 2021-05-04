@@ -86,7 +86,7 @@ typedef struct syn_tag {
 /**
  * Armazena uma chamada de função.
  */
-typedef SYN_tag_t SYN_fun_t;
+typedef SYN_exp_t SYN_fun_t;
 
 /**
  * Armazena um operador da árvore sintática.

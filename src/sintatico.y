@@ -957,7 +957,7 @@ fntail: '(' arglist ')'
 							yyerror(NULL, NULL, NULL);
 							ssprintf(
 								syn_errormsg,
-								"Left-hand side of expression must be an identifier"
+								"Left-hand side of expression must be a variable"
 								);
 							HANDLE_ERROR(syn_errormsg);
 						}
@@ -1136,7 +1136,8 @@ void print_syntatic(node_t node) {
 	}
 
 	if ((SYN_VALUE(node->value)->type == SYN_EXP ||
-		SYN_VALUE(node->value)->type == SYN_EXP_COMP) &&
+		SYN_VALUE(node->value)->type == SYN_EXP_COMP ||
+		SYN_VALUE(node->value)->type == SYN_FUN) &&
 		SYN_EXP(node->value)->cast != CTX_INV) {
 		printf(
 			TREEFADECOLOR" (as %s)"PARSER_CLEARCOLOR,
@@ -1467,11 +1468,6 @@ int main(int argc, char **argv) {
 		HANDLE_ERROR(syn_errormsg);
 	}
 
-		/* Traduz para TAC */
-	if (!got_error) {
-		translate(root, context);
-	}
-
 	/** ============== Finalizando valores ================= **/
 	removeAt(0, parents);                                   /**/
                                                             /**/
@@ -1502,10 +1498,6 @@ int main(int argc, char **argv) {
 	}                                                       /**/
 	/* ================= FIM DA TABELA ==================*/ /**/
                                                             /**/
-	/* Limpa o contexto */                                  /**/
-	depth_pos(free_context, context, NULL, NULL, NULL);     /**/
-	delete_node(context);                                   /**/
-                                                            /**/
 	if (show_syntatic_tree) {                               /**/
 			/* Pega a profundidade da árvore */             /**/
 		depth_pre(max_level, root, &max, NULL, NULL);       /**/
@@ -1525,6 +1517,16 @@ int main(int argc, char **argv) {
 		depth_pre(print, root, &syn_data, NULL, NULL);      /**/
 		free(children_count);                               /**/
 	}                                                       /**/
+                                                            /**/
+		/* Traduz para TAC */                               /**/
+	if (!got_error) {                                       /**/
+		translate(root, context);                           /**/
+	}                                                       /**/
+                                                            /**/
+		/* Limpa o contexto */                              /**/
+	depth_pos(free_context, context, NULL, NULL, NULL);     /**/
+	delete_node(context);                                   /**/
+                                                            /**/
 		/* Limpa a árvore sintática */                      /**/
 	depth_pos(free_values, root, NULL, NULL, NULL);         /**/
 	delete_node(root);                                      /**/

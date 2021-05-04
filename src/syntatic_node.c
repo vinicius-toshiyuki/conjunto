@@ -12,11 +12,11 @@ SYN_value_t create_syn_val(int type, char *name) {
   void *value;
   switch (type) {
   case SYN_TAG:
-  case SYN_FUN:
     value = SYN_TAG(malloc(sizeof(struct syn_tag)));
     break;
   case SYN_EXP:
   case SYN_EXP_COMP:
+  case SYN_FUN:
     value = SYN_EXP(malloc(sizeof(struct syn_exp)));
     SYN_EXP(value)->data_type = CTX_UNK;
     SYN_EXP(value)->depth = 0;
@@ -40,8 +40,8 @@ SYN_value_t create_syn_val(int type, char *name) {
 void delete_syn_val(SYN_value_t value) {
   switch (value->type) {
   case SYN_TAG:
-  case SYN_FUN:
     break;
+  case SYN_FUN:
   case SYN_EXP_COMP:
     break;
   case SYN_EXP:
@@ -330,19 +330,20 @@ int operator_code(const char *string) {
 }
 
 void cast_to(int type, node_t node) {
-  int data[2] = {0, type};
-  depth_pre(__cast_to, node, data, NULL, NULL);
+  depth_pre(__cast_to, node, &type, NULL, NULL);
 }
 
 int __cast_to(node_t node, void *data) {
-  int found = ((int *)data)[0];
-  int type = ((int *)data)[1];
-  if (!found &&
-      (SYN_VALUE(node->value)->type == SYN_EXP ||
-       SYN_VALUE(node->value)->type == SYN_EXP_COMP) &&
+  int type = ((int *)data)[0];
+  if ((SYN_VALUE(node->value)->type == SYN_EXP ||
+       SYN_VALUE(node->value)->type == SYN_EXP_COMP ||
+       SYN_VALUE(node->value)->type == SYN_FUN) &&
       SYN_EXP(node->value)->data_type != type) {
     SYN_EXP(node->value)->cast = type;
-    found = 1;
+    if (strcmp(SYN_VALUE(node->value)->name, TOK_FN) == 0) {
+      __cast_to(child_at(0, node), data);
+      return 1;
+    }
   }
   return 0;
 }

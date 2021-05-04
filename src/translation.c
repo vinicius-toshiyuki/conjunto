@@ -62,6 +62,124 @@ void create_code(node_t tree, node_t context) {
 }
 void __create_code_header() {
   printf(".code\n");
+  printf("set_cmp:\n"); // int set_cmp(set s1, set s2)
+  // if s1.len != s2.len:
+  //   return 0
+  printf("mov $0, #0[1]\n");
+  printf("mov $1, #1[1]\n");
+  printf("seq $0, $0, $1\n");
+  printf("brnz SET_LEN_EQ, $0\n");
+  printf("return 0\n");
+  printf("SET_LEN_EQ:\n");
+  // for i in 0..s1.len:
+  printf("mov $0, 0\n"); // $0 = i
+  printf("SET_FOR:\n");
+  printf("seq $2, $0, $1\n");
+  printf("brnz SET_FOR_END, $2\n");
+  // for j in 0..s1.len:
+  printf("mov $2, 0\n"); // $2 = j
+  printf("SET_FOR_2:\n");
+  printf("seq $3, $2, $1\n");
+  printf("brnz DIFFERENT, $3\n");
+  // if s1[i][0] == s2[j][0]:
+  printf("mul $3, $0, 2\n"); // $3 = i * 2
+  printf("add $3, $3, 2\n"); // $3 += 2
+  printf("mov $5, #0[$3]\n");
+  printf("mul $4, $2, 2\n"); // $4 = j * 2
+  printf("add $4, $4, 2\n"); // $4 += 2
+  printf("mov $6, #1[$4]\n");
+  printf("seq $5, $5, $6\n");
+  printf("brz NOT_SAME_TYPE, $5\n");
+  // if s1[i][0] == 0
+  printf("seq $5, $6, 0\n");
+  printf("add $3, $3, 1\n");
+  printf("add $4, $4, 1\n");
+  printf("mov $3, #0[$3]\n"); // $3 = s1[i][1]
+  printf("mov $4, #1[$4]\n"); // $4 = s2[i][1]
+  printf("brz IF_SET_TYPE, $5\n");
+  // if s1[i][1] == s2[j][1]
+  printf("seq $3, $3, $4\n");
+  printf("brnz FOUND, $3\n");
+  printf("jump NOT_SAME_TYPE\n");
+  printf("IF_SET_TYPE:\n");
+  // if cmp s1[i][1], s2[j][1]
+  printf("param $3\n");
+  printf("param $4\n");
+  printf("call set_cmp, 2\n");
+  printf("pop $3\n");
+  printf("brnz FOUND, $3\n");
+  printf("NOT_SAME_TYPE:\n");
+  printf("add $2, $2, 1\n"); // j++
+  printf("jump SET_FOR_2\n");
+  printf("DIFFERENT:\n");
+  printf("return 0\n");
+  printf("SET_FOR_END_2:\n");
+  printf("FOUND:\n");
+  printf("add $0, $0, 1\n"); // i++
+  printf("jump SET_FOR\n");
+  printf("SET_FOR_END:\n");
+  printf("return 1\n");
+
+  printf("in:\n");           // int in(int is_set, elem v, set s)
+  printf("mov $0, #2[1]\n"); // $0 = s.len
+  // if is_set == 1:
+  printf("seq $1, #0, 1\n");
+  printf("brz IN_NOT_SET, $1\n");
+
+  // for i in 0..s.len:
+  printf("mov $1, 0\n"); // $1 = i
+  printf("IN_FOR_0:\n");
+  printf("seq $2, $1, $0\n");
+  printf("brnz IN_FOR_END_0, $2\n");
+  // if s[i][0] == 1:
+  printf("mul $2, $1, 2\n");  // $2 = i * 2
+  printf("add $2, $2, 2\n");  // $2 += 2
+  printf("mov $3, #2[$2]\n"); // $3 = s[0][0]
+  printf("seq $3, $3, 1\n");
+  printf("brz IN_ELSE_0, $3\n");
+  // if set_cmp s[i][1], v:
+  printf("add $2, $2, 1\n");
+  printf("mov $3, #2[$2]\n"); // $3 = s[0][1]
+  printf("param $3\n");
+  printf("param #1\n");
+  printf("call set_cmp, 2\n");
+  printf("pop $3\n");
+  printf("seq $3, $3, 1\n");
+  printf("brz IN_ELSE_0, $3\n");
+  printf("return 1\n");
+  printf("IN_ELSE_0:\n");
+
+  printf("add $1, $1, 1\n");
+  printf("jump IN_FOR_0\n");
+  printf("IN_FOR_END_0:\n");
+  printf("jump IN_IS_SET\n");
+
+  printf("IN_NOT_SET:\n");
+  // for i in 0..s.len:
+  printf("mov $1, 0\n"); // $1 = i
+  printf("IN_FOR_1:\n");
+  printf("seq $2, $1, $0\n");
+  printf("brnz IN_FOR_END_1, $2\n");
+  // if s[i][0] == 1:
+  printf("mul $2, $1, 2\n");  // $2 = i * 2
+  printf("add $2, $2, 2\n");  // $2 += 2
+  printf("mov $3, #2[$2]\n"); // $3 = s[0][0]
+  printf("seq $3, $3, 0\n");
+  printf("brz IN_ELSE_1, $3\n");
+  // if set_cmp s[i][1], v:
+  printf("add $2, $2, 1\n");
+  printf("mov $3, #2[$2]\n"); // $3 = s[0][1]
+  printf("seq $3, $3, #1\n");
+  printf("brz IN_ELSE_1, $3\n");
+  printf("return 1\n");
+  printf("IN_ELSE_1:\n");
+
+  printf("add $1, $1, 1\n");
+  printf("jump IN_FOR_1\n");
+  printf("IN_FOR_END_1:\n");
+
+  printf("IN_IS_SET:\n");
+  printf("return 0\n");
   /* int write(val) */
   printf(BUILTIN_WRITE ":\n");
   printf("seq $0, #1, 0\n");
@@ -171,7 +289,9 @@ int __create_code(node_t node, void *value) {
       CTX_fun_t fun = CTX_FUN(lookup_symbol(data.curfun, data.context));
       data.context = fun->context;
       append(calloc(1, sizeof(size_t)), data.temps);
-      printf("%s:\n", data.curfun);
+      char suffix[512];
+      __get_fun_suffix(data.curfun, data.context, suffix);
+      printf("%s%s:\n", data.curfun, suffix);
       depth_pre(__create_code, node->children->last->value, value, NULL, NULL);
       printf("return 0\n");
       ret_code = 1;
@@ -472,7 +592,9 @@ int __get_exp_code(node_t node, void *value) {
           },
           fn->children);
     }
-    printf("call %s", varname);
+    char suffix[512];
+    __get_fun_suffix(varname, data.context, suffix);
+    printf("call %s%s", varname, suffix);
     if (argcount > 1) {
       printf(", %lu", argcount - 1);
     }
@@ -725,4 +847,28 @@ size_t __get_declr_index(char *id, char *curfun, node_t context) {
         fun->context->value);
   }
   return idx;
+}
+
+void __get_fun_suffix(char *fun_name, node_t context, char *buffer) {
+  char *data[2] = {buffer, fun_name};
+  *buffer = '\0';
+  depth_pre(__search_fun, context, data, NULL, NULL);
+}
+
+int __search_fun(node_t node, void *data) {
+  char **datad = data;
+  CTX_sym_t sym = lookup_symbol(datad[1], node);
+  if (sym != NULL && strcmp(sym->id, FUN_MAIN) != 0) {
+    *(*datad)++ = 'f';
+    **datad = '\0';
+    int idx = indexOf(sym, node->value);
+    sprintf(*datad, "%d", idx);
+    while (node->parent != NULL) {
+      idx = indexOf(node, node->parent->children);
+      sprintf(*datad, "%d", idx);
+      node = node->parent;
+    }
+    return 1;
+  }
+  return 0;
 }

@@ -690,10 +690,13 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 	| FLOAT  { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_FLOAT))));  }
 	| STRING { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_STRING)))); }
 	| CHAR   { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_CHAR))));   }
-	| EMPTY  {
-			SYN_exp_t exp = SYN_EXP(create_syn_val(SYN_EXP, strdup(TOK_EMPTY)));
+	| EMPTY
+		{
+			
+			SYN_tag_t tag = SYN_TAG(create_syn_val(SYN_TAG, TOK_EMPTY));
+			SYN_exp_t exp = SYN_EXP(create_syn_val(SYN_EXP, strdup(CONST_EMPTY)));
 			init_syn_exp(CTX_SET, 0, exp);
-			$$ = create_node(exp);
+			add_child(create_node(exp), ($$ = create_node(tag)));
 		}
 	| ID
 		{
@@ -768,8 +771,25 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 			$$ = exp;
 			eval_exp_type(exp);
 		}
-	| ID OPASSIGN exp
+	| exp OPASSIGN exp
 		{
+			CTX_sym_t var = NULL;
+			if ($1->children->size > 0) {
+				var = lookup_symbol(
+					SYN_VALUE(child_at(0, $1)->value)->name,
+					current_context
+					);
+			}
+			if (strcmp(SYN_VALUE($1->value)->name, TOK_ID) != 0 ||
+				(var != NULL && var->type != CTX_VAR)) {
+				yyerror(NULL, NULL, NULL);
+				sprintf(
+					syn_errormsg,
+					"Operator \"%s\" must be used with a variable in left-hand side",
+					SYN_VALUE($2->value)->name
+					);
+				HANDLE_ERROR(syn_errormsg);
+			}
 			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
 			node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPASSIGN));
 			if (operator_code(SYN_VALUE($2->value)->name) != OP_ASSIGN) {
@@ -818,13 +838,11 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 			}
 			$$ = exp;
 			eval_exp_type(exp);
-			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 		}
 	| ID
 		{
 			$<node>$ = create_node(create_syn_val(SYN_FUN, TOK_FN));
 			add_child($1, $<node>$);
-			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			insert(0, $<node>$, parents);
 		} fntail {
 			CTX_sym_t maybe_fun =
@@ -861,7 +879,7 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 	| exp OPBIN6 error { ADD_BIN_EXP_ERR($$, $1, $2); }
 	| exp OPBIN7 error { ADD_BIN_EXP_ERR($$, $1, $2); }
 	| exp OPBIN8 error { ADD_BIN_EXP_ERR($$, $1, $2); }
-	| ID OPASSIGN error
+	| exp OPASSIGN error
 		{
 			node_t exp = create_node(create_syn_val(SYN_EXP_COMP, TOK_EXP));
 			node_t op = create_node(create_syn_val(SYN_TAG, TOK_OPASSIGN));
@@ -871,7 +889,6 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 			node_t err = create_node(create_syn_val(SYN_TAG, ERR_TOKEN));
 			add_child(err, exp);
 			$$ = exp;
-			UNDEF_ID_ERR(FIRSTCHILD_VALUE($1));
 			ssprintf(
 				syn_errormsg,
 				"Expected expression in '%s %s'",
@@ -1042,19 +1059,19 @@ int print(node_t node, void *data) {
 		node_t lookback = node->parent;
 		node_t last_valid = node->parent, last_valid_child = node;
 
-		char *node_name = SYN_VALUE(node->value)->name;
+		char *node_name = node->parent != NULL ? SYN_VALUE(node->value)->name : NULL;
 		if (!data_st->detailed &&
 			node->children->size == 1 &&
-			strcmp(node_name, TOK_RETURN) != 0) {
+			(node_name != NULL && strcmp(node_name, TOK_RETURN) != 0)) {
 			return 0;
 		}
 		if(!data_st->detailed) {
 			size_t folds = 0;
 			int searching = 1;
 			while (lookback != NULL) {
-				char *node_name = SYN_VALUE(lookback->value)->name;
+				char *node_name = lookback->parent != NULL ? SYN_VALUE(lookback->value)->name : NULL;
 				if (lookback->children->size > 1 ||
-					strcmp(node_name, TOK_RETURN) == 0) {
+					(node_name != NULL && strcmp(node_name, TOK_RETURN) == 0)) {
 					searching = 0;
 				} else if (++folds && searching) {
 					last_valid_child = last_valid;

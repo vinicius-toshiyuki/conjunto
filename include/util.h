@@ -130,7 +130,7 @@ typedef struct err_location {
 #define TOK_RETURN "<return>"
 #define TOK_BLOCK "<block>"
 #define TOK_EMPTYCMD "<emptycmd>"
-#define TOK_EMPTY "EMPTY"
+#define TOK_EMPTY "<empty>"
 #define TOK_DECLR "<declr>"
 #define TOK_PARLIST "<parlist>"
 #define TOK_EMPTYEXP "<emptyexp>"
@@ -172,6 +172,7 @@ typedef struct err_location {
 #define TYPE_SET "set"
 
 #define FUN_MAIN "main"
+#define CONST_EMPTY "EMPTY"
 
 #ifdef __GNUC__
 #define DEPRECATED(fun) fun __attribute__((deprecated))

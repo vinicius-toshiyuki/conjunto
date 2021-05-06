@@ -40,6 +40,7 @@ const char *tac_op_string(int type);
 CTX_sym_t get_symbol_identifier(char *name, char *id, node_t context);
 int __get_symbol_identifier(node_t node, void *data);
 size_t __get_declr_index(char *id, char *curfun, node_t context);
+size_t __get_par_index(char *id, char *curfun, node_t context);
 
 void __get_fun_suffix(char *fun_name, node_t context, char *buffer);
 int __search_fun(node_t node, void *data);

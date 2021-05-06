@@ -123,6 +123,37 @@ int eval_exp_type(node_t exp) {
                    ->children->first->value)
                   ->value;
         subexp2 = exp->children->last->value;
+        if (subexp2->children->size == 1) {
+          /* O elem pega o tipo da outra variável se não tiver */
+          subexp3 = subexp2->children->first->value;
+          if (SYN_VALUE(subexp3->value)->type == SYN_EXP) {
+            extern node_t current_context;
+            CTX_sym_t sym =
+                lookup_symbol(SYN_EXP(subexp3->value)->name, current_context);
+            if (sym != NULL && sym->type == CTX_VAR &&
+                CTX_VAR(sym)->data_type == CTX_ELEM &&
+                CTX_VAR(sym)->secondary_data_type == CTX_UNK) {
+              CTX_VAR(sym)->secondary_data_type = eval_exp_type(subexp1);
+              SYN_EXP(subexp3->value)->data_type = eval_exp_type(subexp1);
+            }
+          }
+        }
+        if (subexp1->children->size == 1) {
+          subexp3 = subexp1->children->first->value;
+          if (SYN_VALUE(subexp3->value)->type == SYN_EXP) {
+            extern node_t current_context;
+            CTX_sym_t sym =
+                lookup_symbol(SYN_EXP(subexp3->value)->name, current_context);
+            if (sym != NULL && sym->type == CTX_VAR &&
+                CTX_VAR(sym)->data_type == CTX_ELEM &&
+                CTX_VAR(sym)->secondary_data_type == CTX_UNK) {
+              CTX_VAR(sym)->secondary_data_type = eval_exp_type(subexp2);
+              /* Perde a informação de que o tipo é polimórfico */
+              SYN_EXP(subexp3->value)->data_type = eval_exp_type(subexp2);
+              exp_type = eval_exp_type(subexp2);
+            }
+          }
+        }
         switch (op1->op_type) {
         case OP_ASSIGN:
         case OP_ASSIGN_ADD:
@@ -133,21 +164,6 @@ int eval_exp_type(node_t exp) {
         case OP_ASSIGN_AND:
         case OP_ASSIGN_XOR:
           exp_type = eval_exp_type(subexp1);
-          if (subexp1->children->size == 1) {
-            subexp3 = subexp1->children->first->value;
-            if (SYN_VALUE(subexp3->value)->type == SYN_EXP) {
-              extern node_t current_context;
-              CTX_sym_t sym =
-                  lookup_symbol(SYN_EXP(subexp3->value)->name, current_context);
-              if (sym != NULL && sym->type == CTX_VAR &&
-                  CTX_VAR(sym)->data_type == CTX_ELEM) {
-                CTX_VAR(sym)->secondary_data_type = eval_exp_type(subexp2);
-                /* Perde a informação de que o tipo é polimórfico */
-                SYN_EXP(subexp3->value)->data_type = eval_exp_type(subexp2);
-                exp_type = eval_exp_type(subexp2);
-              }
-            }
-          }
           if (!can_cast(eval_exp_type(subexp2), exp_type)) {
             SET_ERROR_LOCATION(lnum, lcol, err_loc);
             sprintf(syn_errormsg, "Unable to cast expression of type %s to %s",
@@ -239,6 +255,7 @@ int eval_exp_type(node_t exp) {
           //           data_type_string(eval_exp_type(subexp1)));
           //   HANDLE_ERROR(syn_errormsg);
           // }
+          eval_exp_type(subexp1); /* Para atualizar os tipos */
           if (eval_exp_type(subexp2) != CTX_SET) {
             SET_ERROR_LOCATION(lnum, lcol, err_loc);
             sprintf(syn_errormsg,
@@ -379,7 +396,7 @@ int can_cast(int type1, int type2) {
     }
     break;
   case CTX_ELEM:
-    can = type1 == type2;
+    can = 1; // type1 == type2;
     break;
   case CTX_SET:
     if (type2 == CTX_CHAR || type2 == CTX_INT || type2 == CTX_FLOAT) {

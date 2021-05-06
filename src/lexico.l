@@ -55,17 +55,25 @@ char string_to_char(char *str, char **endptr) {
 		long val = -1;
 		c = '\r';
 		switch (*++str) {
+		case 'A':
 		case 'a': c--;
+		case 'B':
 		case 'b': c--;
+		case 'T':
 		case 't': c--;
+		case 'N':
 		case 'n': c--;
+		case 'V':
 		case 'v': c--;
+		case 'F':
 		case 'f': c--;
+		case 'R':
 		case 'r':
 			if (endptr != NULL) {
 				*endptr = str + 1;
 			}
 			break;
+		case 'E':
 		case 'e':
 			if (endptr != NULL) {
 				*endptr = str + 1;

@@ -56,6 +56,7 @@ int __create_table(node_t node, void *data) {
 void create_code(node_t tree, node_t context) {
   t9n_data_t data = {context, create_list(), NULL, create_list()};
   append(calloc(1, sizeof(size_t)), data.temps);
+  *((int *)data.temps->last->value) = 1;
   depth_pre(__create_code, tree, &data, __create_code_header, NULL);
   printf("EOF:\n");
   printf("nop\n");
@@ -67,16 +68,57 @@ void create_code(node_t tree, node_t context) {
 void __create_code_header() {
   printf(".code\n");
   /***********************/
-  /* val get_var (var v) */
+  /* val get_var (var v, elem_cast) */
   printf("get_var:\n");
   printf("mov $0, *#0\n"); /* tipo */
   printf("seq $0, $0, %d\n", CTX_SET);
   printf("brnz GET_VAR_IS_SET, $0\n");
+  printf("mov $0, *#0\n"); /* tipo */
+  printf("seq $0, $0, %d\n", CTX_ELEM);
+  printf("brnz GET_VAR_IS_ELEM, $0\n");
+  printf("mov $0, *#0\n"); /* tipo */
   printf("mov $0, #0[1]\n");
-  printf("jump GET_VAR_NOT_SET\n");
+  printf("jump GET_VAR_DONE\n");
+  printf("GET_VAR_IS_ELEM:\n");
+
+  printf("mov $0, #0[1]\n");
+  printf("mov $1, #0[2]\n");
+  // if sec_type == CHAR:
+  printf("seq $2, $1, %d\n", CTX_CHAR);
+  printf("brz GET_CHAR_SEC_TYPE_INT, $2\n");
+  printf("mov $2, $0\n");
+  printf("mov #1[0], $2\n");
+  printf("chtoint $2, $2\n");
+  printf("mov #1[1], $2\n");
+  printf("inttofl $2, $2\n");
+  printf("mov #1[2], $2\n");
+  printf("jump GET_VAR_DONE\n");
+  // if sec_type == INT:
+  printf("GET_CHAR_SEC_TYPE_INT:\n");
+  printf("seq $2, $1, %d\n", CTX_INT);
+  printf("brz GET_CHAR_SEC_TYPE_FLOAT, $2\n");
+  printf("mov $2, $0\n");
+  printf("mov #1[1], $2\n");
+  printf("inttoch $2, $2\n");
+  printf("mov #1[0], $2\n");
+  printf("chtofl $2, $2\n");
+  printf("mov #1[2], $2\n");
+  printf("jump GET_VAR_DONE\n");
+  // if sec_type == FLOAT:
+  printf("GET_CHAR_SEC_TYPE_FLOAT:\n");
+  printf("seq $2, $1, %d\n", CTX_FLOAT);
+  printf("brz GET_VAR_DONE, $2\n");
+  printf("mov $2, $0\n");
+  printf("mov #1[2], $2\n");
+  printf("fltoint $2, $2\n");
+  printf("mov #1[1], $2\n");
+  printf("inttoch $2, $2\n");
+  printf("mov #1[0], $2\n");
+  printf("jump GET_VAR_DONE\n");
+
   printf("GET_VAR_IS_SET:\n");
   printf("mov $0, #0\n");
-  printf("GET_VAR_NOT_SET:\n");
+  printf("GET_VAR_DONE:\n");
   printf("return $0\n");
   /***********************/
   /* void set_var (val v, var r) */
@@ -182,7 +224,8 @@ void __create_code_header() {
   printf("pop $3\n");
   printf("seq $3, $3, 1\n");
   printf("brz IN_ELSE_0, $3\n");
-  printf("return 1\n");
+  printf("add $1, $1, 1\n");
+  printf("return $1\n"); // return i + 1
   printf("IN_ELSE_0:\n");
 
   printf("add $1, $1, 1\n");
@@ -198,15 +241,16 @@ void __create_code_header() {
   printf("brnz IN_FOR_END_1, $2\n");
   // if s.data[i][0] != CTX_SET:
   printf("mul $2, $1, 2\n");  // $2 = i * 2
-  printf("mov $3, $4[$2]\n"); // $3 = s.data[0][0]
+  printf("mov $3, $4[$2]\n"); // $3 = s.data[i].type
   printf("seq $3, $3, #0\n");
   printf("brz IN_ELSE_1, $3\n");
-  // if set_cmp s.data[i][1], v:
+  // if s.data[i].data == v:
   printf("add $2, $2, 1\n");
-  printf("mov $3, $4[$2]\n"); // $3 = s.data[0][1]
+  printf("mov $3, $4[$2]\n"); // $3 = s.data[i].data
   printf("seq $3, $3, #1\n");
   printf("brz IN_ELSE_1, $3\n");
-  printf("return 1\n");
+  printf("add $1, $1, 1\n");
+  printf("return $1\n"); // return i + 1
   printf("IN_ELSE_1:\n");
 
   printf("add $1, $1, 1\n");
@@ -216,13 +260,25 @@ void __create_code_header() {
   printf("IN_IS_SET:\n");
   printf("return 0\n");
   /****************************/
+  /* int is_set(var v) */
+  printf("is_set:\n");
+  printf("mov $0, *#0\n");
+  printf("seq $1, $0, %d\n", CTX_ELEM);
+  printf("brz IS_SET_DONE, $1\n");
+  printf("mov $0, #0[2]\n");
+  printf("IS_SET_DONE:\n");
+  printf("seq $0, $0, %d\n", CTX_SET);
+  printf("return $0\n");
+  /****************************/
   /* int write(val) */
   printf(BUILTIN_WRITE ":\n");
   printf("seq $0, #1, 0\n");
-  printf("brz STRING, $0\n"); /* Não string */
+  printf("brz CHECK_STRING, $0\n"); /* Não string */
   printf("print #0\n");
   printf("jump ENDWRT\n");
-  printf("STRING:\n");   /* String */
+  printf("CHECK_STRING:\n"); /* String */
+  printf("seq $0, #1, 1\n");
+  printf("brz WRITE_SET, $0\n");
   printf("mov $0, 0\n"); /* $0 = index */
   printf("STARTSTR:\n");
   printf("mov $1, #0[$0]\n"); /* $1 = string[index] */
@@ -232,6 +288,37 @@ void __create_code_header() {
   printf("print $1\n");      /* print string[index] */
   printf("add $0, $0, 1\n"); /* index++ */
   printf("jump STARTSTR\n");
+  printf("WRITE_SET:\n"); /* Set */
+  printf("print '{'\n");
+  printf("mov $0, 0\n");     /* $0 = i */
+  printf("mov $1, #0[1]\n"); /* $1 = val.len */
+  printf("mov $2, #0[2]\n"); /* $2 = val.data */
+  printf("STARTSET:\n");
+  printf("seq $3, $1, $0\n");
+  printf("brnz ENDSET, $3\n");
+  printf("mul $3, $0, 2\n");  /* $3 = i * 2 */
+  printf("mov $4, $2[$3]\n"); /* $4 = val.data[i].type */
+  printf("seq $4, $4, %d\n", CTX_SET);
+  printf("brz WRT_MODE_SET, $4\n");
+  printf("mov $4, 2\n"); /* print_mode = 2 */
+  printf("WRT_MODE_SET:\n");
+  printf("add $3, $3, 1\n");  /* $3 = i * 2 + 1 */
+  printf("mov $5, $2[$3]\n"); /* $5 = val.data[i].data */
+  printf("param $5\n");
+  printf("param $4\n");
+  printf("print $5\n");
+  // printf("call write, 2\n");
+  // printf("pop $3\n");        /* Descarta valor */
+  printf("sub $3, $1, 1\n"); /* $3 = val.len - 1 */
+  printf("seq $3, $3, $0\n");
+  printf("brnz WRT_LAST, $3\n");
+  printf("print ','\n");
+  printf("print ' '\n");
+  printf("WRT_LAST:\n");
+  printf("add $0, $0, 1\n"); /* i++ */
+  printf("jump STARTSET\n");
+  printf("ENDSET:\n");
+  printf("print '}'\n");
   printf("ENDWRT:\n");
   printf("return 0\n");
   /****************************/
@@ -246,6 +333,11 @@ void __create_code_header() {
   /* int read(var) */
   printf(BUILTIN_READ ":\n");
   printf("mov $0, *#0\n"); /* $0 = data type */
+  // if var.type == elem
+  printf("seq $1, $0, %d\n", CTX_ELEM);
+  printf("brz READ_NOT_ELEM, $1\n");
+  printf("mov $0, #0[2]\n"); // $0 = var.sec_type
+  printf("READ_NOT_ELEM:\n");
   printf("seq $1, $0, %d\n", CTX_CHAR);
   printf("brz READ_INT, $1\n");
   printf("scanc $1\n");
@@ -279,7 +371,7 @@ void __create_code_header() {
   printf("param #2\n");
   printf("call in, 3\n");
   printf("pop $0\n");
-  printf("seq $0, $0, 1\n");
+  printf("slt $0, 0, $0\n");
   printf("brz ADD_NOT_IN, $0\n");
   printf("jump ADD_END\n");
   // else:
@@ -318,10 +410,97 @@ void __create_code_header() {
   printf("ADD_END:\n");
   printf("return #2\n");
   /**************************************/
+  /* int exists(var v, set s) */
+  /* NOTE: recebe a variável, não seu valor */
+  printf("exists:\n");
+  printf("mov $0, #1[1]\n"); // $0 = s.len
+  printf("mov $1, #1[2]\n"); // $1 = s.data
+  printf("mov $2, *#0\n");   // v.type
+  // for  i in 0..$0:
+  printf("mov $3, 0\n"); // $1 = i
+  printf("EXISTS_FOR:\n");
+  printf("seq $4, $3, $0\n");
+  printf("brnz EXISTS_FOR_END, $4\n");
+  printf("mul $4, $3, 2\n");  // $4 = i * 2
+  printf("mov $5, $1[$4]\n"); // $5 = s.data[i * 2].type
+  printf("seq $5, $4, $2\n");
+  printf("brz EXISTS_DIFF_TYPE, $5\n");
+  /* TODO: sempre o primeiro valor */
+  printf("EXISTS_IS_ELEM:\n");
+  printf("add $4, $4, 1\n");  // $4 += 1
+  printf("mov $5, $1[$4]\n"); // $5 = s.data[i * 2 + 1]
+  printf("mov #0[1], $5\n");  // v.data = $5
+  printf("jump EXISTS_FOR_END\n");
+  printf("EXISTS_DIFF_TYPE:\n");
+  // if v.type == CTX_ELEM:
+  printf("seq $5, $2, %d\n", CTX_ELEM);
+  printf("brz EXISTS_NOT_ELEM, $5\n");
+  printf("mov $5, $1[$4]\n"); // $5 = s.data[i * 2].type
+  printf("mov #0[2], $5\n");  // v.sec_type = $5
+  printf("jump EXISTS_IS_ELEM\n");
+  printf("EXISTS_NOT_ELEM:\n");
+  printf("add $3, $3, 1\n"); // i++
+  printf("jump EXISTS_FOR\n");
+  printf("EXISTS_FOR_END:\n");
+  printf("mov $0, #0[1]\n");
+  printf("return $0\n"); /* TODO: tem que retornar a variável? */
+  /**************************************/
+  /* int remove(type t, val v, set s) */
+  printf(BUILTIN_REMOVE ":\n");
+  printf("mov $0, #0\n"); /* data type */
+  // if v in s:
+  printf("param #0\n");
+  printf("param #1\n");
+  printf("param #2\n");
+  printf("call in, 3\n");
+  printf("pop $0\n"); /* $0 é o índice do elemento */
+  printf("seq $1, $0, 0\n");
+  printf("brnz REMOVE_END, $0\n");
+
+  printf("mov $1, 0\n");     /* $1 = i */
+  printf("mov $2, #2[1]\n"); /* $2 = s.len */
+  printf("sub $3, $2, 1\n");
+  printf("mul $3, $3, 2\n"); /* novo len */
+  printf("mema $3, $3\n");
+  printf("mov $4, 0\n"); /* idx = 0 */
+
+  /* for i in 0..$2 */
+  printf("REMOVE_FOR:\n");
+  printf("seq $5, $2, $1\n");
+  printf("brnz REMOVE_FOR_END, $5\n");
+
+  /* if idx == i */
+  printf("seq $5, $0, $1\n");
+  printf("brz REMOVE_IGNORE_IDX, $5\n");
+  printf("mul $5, $1, 2\n"); /* $5 = i * 2 */
+  printf("mov $6, #2[2]\n");
+  printf("mov $6, $6[$5]\n"); /* $6 = s[i].type */
+  printf("mov $3[$5], $6\n"); /* new[i].type = $6 */
+  printf("add $5, $5, 1\n");
+  printf("mov $6, #2[2]\n");
+  printf("mov $6, $6[$5]\n"); /* $6 = s[i].data */
+  printf("mov $3[$5], $6\n"); /* new[i].data = $6 */
+  printf("add $4, $4, 1\n");
+  printf("REMOVE_IGNORE_IDX:\n");
+
+  printf("add $1, $1, 1\n");
+  printf("jump REMOVE_FOR\n");
+  printf("REMOVE_FOR_END:\n");
+  printf("REMOVE_END:\n");
+
+  printf("mov $0, #2[2]\n");
+  printf("memf $0\n");
+  printf("mov #2[2], $3\n"); /* s.data = new */
+  printf("mov $0, #2[1]\n");
+  printf("sub $0, $0, 1\n");
+  printf("mov #2[1], $0\n"); /* s.len-- */
+
+  printf("return 0\n");
+  /**************************************/
 }
 
 int __create_code(node_t node, void *value) {
-  static size_t ifcount = 0, loopcount = 0;
+  static size_t ifcount = 0, loopcount = 0, wrtcall = 0;
   t9n_data_t *data = value;
   int ret_code = 0;
   SYN_value_t syn = node->value;
@@ -341,11 +520,12 @@ int __create_code(node_t node, void *value) {
       CTX_fun_t fun = CTX_FUN(lookup_symbol(data->curfun, data->context));
       data->context = fun->context;
       append(calloc(1, sizeof(size_t)), data->temps);
+      *((int *)data->temps->last->value) = 1;
       char suffix[512];
       __get_fun_suffix(data->curfun, data->context, suffix);
       printf("%s%s:\n", data->curfun, suffix);
+      printf("mema $0, 3 // elem casts\n");
       depth_pre(__create_code, node->children->last->value, value, NULL, NULL);
-      printf("return 0\n");
       ret_code = 1;
     } else if (strcmp(syn->name, TOK_DECLR) == 0) {
       MAP(
@@ -357,13 +537,19 @@ int __create_code(node_t node, void *value) {
               char *type =
                   SYN_VALUE(child_at(0, child_at(0, node))->value)->name;
               printf("// %s %s\n", type, varname);
-              printf("mema $%lu, %d\n", *temp,
-                     data_type_code(type) == CTX_SET ? 3 : 2);
-              printf("mov *$%lu, %d\n", (*temp)++, data_type_code(type));
-              if (data_type_code(type) == CTX_SET) {
-                printf("mema $%lu, 0\n", *temp);
-                printf("mov $%lu[2], $%lu\n", *temp - 1, *temp);
+              int type_code = data_type_code(type);
+              if (type_code == CTX_SET) {
+                printf("mema $%lu, %d\n", *temp, 3);
+                printf("mema $%lu, 0\n", *temp + 1);
+                printf("mov $%lu[2], $%lu\n", *temp, *temp + 1);
+              } else if (type_code == CTX_ELEM) {
+                printf("mema $%lu, %d\n", *temp, 3);
+                /* el.sec_type = CTX_UNK */
+                printf("mov $%lu[2], %d\n", *temp, CTX_UNK);
+              } else {
+                printf("mema $%lu, %d\n", *temp, 2);
               }
+              printf("mov *$%lu, %d\n", (*temp)++, data_type_code(type));
             }
           },
           node->children);
@@ -373,6 +559,12 @@ int __create_code(node_t node, void *value) {
 
       depth_pos(__get_exp_code, child_at(0, node), value, NULL, NULL);
       printf("pop $%lu\n", *temp);
+      if (strcmp(SYN_VALUE(child_at(0, node)->value)->name, TOK_ID) == 0) {
+        printf("param $%lu\n", *temp);
+        printf("param $0\n");
+        printf("call get_var, 2\n");
+        printf("pop $%lu\n", *temp);
+      }
 
       if (strcmp(data->curfun, FUN_MAIN) == 0) {
         printf("jump EOF\n");
@@ -430,6 +622,49 @@ int __create_code(node_t node, void *value) {
       printf("LOOP_END_%lu:\n", *temploop);
       free(removeAt(data->loops->size - 1, data->loops));
       ret_code = 1;
+    } else if (strcmp(syn->name, TOK_FORALL) == 0) {
+      size_t *temploop = (size_t *)malloc(sizeof(size_t));
+      *temploop = loopcount++;
+      append(temploop, data->loops);
+
+      node_t inexp = child_at(0, node);
+      int idxs[] = {0, 0, -1};
+      char *varname = SYN_VALUE(navigate(idxs, inexp)->value)->name;
+      size_t idx = __get_declr_index(varname, data->curfun, data->context);
+      /* Obtém o código do set */
+      depth_pos(__get_exp_code, child_at(2, inexp), value, NULL, NULL);
+      printf("pop $%lu // set\n", *temp);
+      printf("mov $%lu, $%lu[1] // set.len\n", *temp + 1,
+             *temp);                                   /* $1 = set.len  */
+      printf("mov $%lu, 0\n", *temp + 2);              /* $2 = i */
+      printf("mov $%lu, $%lu[2]\n", *temp + 3, *temp); /* $3 = set.data */
+      printf("LOOP_%lu:\n", *temploop);
+      printf("seq $%lu, $%lu, $%lu\n", *temp + 4, *temp + 2, *temp + 1);
+      printf("brnz LOOP_END_%lu, $%lu\n", *temploop, *temp + 4);
+      printf("mul $%lu, $%lu, 2\n", *temp + 4, *temp + 2); /* $4 = i * 2 */
+      printf("mov $%lu, $%lu[$%lu]\n", *temp + 5, *temp + 3,
+             *temp + 4); /* $5 = set.data[i].type */
+      if (lookup_symbol(varname, data->context)->data_type == CTX_ELEM) {
+        printf("mov $%lu[2], $%lu\n", idx, *temp + 5); /* var.sec_type = $5 */
+      }
+      printf("add $%lu, $%lu, 1\n", *temp + 4, *temp + 4); /* $4 += 1 */
+      printf("mov $%lu, $%lu[$%lu]\n", *temp + 5, *temp + 3,
+             *temp + 4);                             /* $5 = set.data[i].data */
+      printf("mov $%lu[1], $%lu\n", idx, *temp + 5); /* var.data = $5 */
+
+      *temp += 7; /* $7 > podem ser apagados */
+      printf("/////\n");
+      depth_pre(__create_code, child_at(1, node), value, NULL, NULL);
+      printf("/////\n");
+      *temp -= 7;
+      printf("add $%lu, $%lu, 1\n", *temp + 2, *temp + 2);
+      printf("jump LOOP_%lu\n", *temploop);
+      printf("LOOP_END_%lu:\n", *temploop);
+
+      printf("// %s %lu\n", varname, idx);
+
+      free(removeAt(data->loops->size - 1, data->loops));
+      ret_code = 1;
     } else if (strcmp(syn->name, TOK_BREAK) == 0) {
       printf("jump LOOP_END_%lu\n", *((size_t *)data->loops->last->value));
       ret_code = 1;
@@ -442,53 +677,106 @@ int __create_code(node_t node, void *value) {
           strcmp(fun_name, BUILTIN_WRITELN) == 0) {
         depth_pos(__get_exp_code, child_at(1, node), value, NULL, NULL);
         printf("pop $%lu\n", *temp);
-        size_t print_mode = 0;
+        printf("mov $%lu, 0 // print_mode\n", *temp + 1);
         if (child_at(1, node)->children->size == 1) {
           if (strcmp(SYN_VALUE(child_at(1, node)->value)->name, TOK_ID) == 0) {
             int idxs[] = {1, 0, -1};
             char *varname = SYN_VALUE(navigate(idxs, node)->value)->name;
             size_t idx =
                 __get_declr_index(varname, data->curfun, data->context);
-            if (idx > 0) {
-              printf("param $%lu\n", idx - 1);
-              printf("call get_var, 1\n");
-              printf("pop $%lu\n", *temp);
-              // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), *temp,
-              //        idx - 1); /* Obtém o valor da variável */
-            }
+            printf("param $%lu\n", idx);
+            printf("param $0\n");
+            printf("call get_var, 2\n");
+            printf("pop $%lu\n", *temp);
+
+            printf("mov $%lu, *$%lu\n", *temp + 2, idx);
+            printf("WRT_CHEK_ELEM_SET_%lu:\n", wrtcall);
+            printf("seq $%lu, $%lu, %d\n", *temp + 3, *temp + 2, CTX_SET);
+            printf("brz WRT_CALL_NOT_SET_%lu, $%lu\n", wrtcall, *temp + 3);
+            printf("mov $%lu, 2\n", *temp + 1);
+            printf("jump WRT_CALL_DONE_%lu\n", wrtcall);
+            printf("WRT_CALL_NOT_SET_%lu:\n", wrtcall);
+            printf("seq $%lu, $%lu, %d\n", *temp + 3, *temp + 2, CTX_ELEM);
+            printf("brz WRT_CALL_DONE_%lu, $%lu\n", wrtcall, *temp + 3);
+            printf("mov $%lu, $%lu[2]\n", *temp + 2, idx);
+            printf("jump WRT_CHEK_ELEM_SET_%lu\n", wrtcall);
+            printf("WRT_CALL_DONE_%lu:\n", wrtcall++);
+            // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), *temp,
+            //        idx); /* Obtém o valor da variável */
           } else if (strcmp(SYN_VALUE(child_at(1, node)->value)->name,
                             TOK_STRING) == 0) {
-            print_mode = 1;
+            printf("mov $%lu, 1\n", *temp + 1);
           }
         }
         printf("param $%lu\n", *temp);
-        printf("param %lu\n", print_mode);
+        printf("param $%lu\n", *temp + 1);
         printf("call write%s, 2\n",
                strcmp(fun_name, BUILTIN_WRITELN) == 0 ? "ln" : "");
       } else if (strcmp(fun_name, BUILTIN_READ) == 0) {
         int idxs[] = {1, 0, -1};
         char *varname = SYN_VALUE(navigate(idxs, node)->value)->name;
         size_t idx = __get_declr_index(varname, data->curfun, data->context);
-        printf("param $%lu\n", idx - 1);
+        printf("param $%lu\n", idx);
         printf("call read, 1\n");
       } else if (strcmp(fun_name, BUILTIN_ISSET) == 0) {
-        int exp_type = eval_exp_type(child_at(1, node));
-        printf("// is_set(%s)\n", data_type_string(exp_type));
-        printf("push %d\n", exp_type == CTX_SET ? 1 : 0);
+        if (strcmp(SYN_VALUE(child_at(1, node)->value)->name, TOK_ID) == 0) {
+          char *varname =
+              SYN_VALUE(child_at(0, child_at(1, node))->value)->name;
+          size_t idx = __get_declr_index(varname, data->curfun, data->context);
+          printf("param $%lu\n", idx);
+          printf("call is_set, 1\n");
+        } else {
+          int exp_type = eval_exp_type(child_at(1, node));
+          printf("// is_set(%s)\n", data_type_string(exp_type));
+          printf("push %d\n", exp_type == CTX_SET ? 1 : 0);
+        }
       } else if (strcmp(fun_name, BUILTIN_ADD) == 0) {
         node_t exp = child_at(1, node);
         int exp_type = eval_exp_type(child_at(0, exp));
         depth_pos(__get_exp_code, child_at(2, exp), value, NULL, NULL);
         depth_pos(__get_exp_code, child_at(0, exp), value, NULL, NULL);
+
         printf("pop $%lu // val\n", *temp);
+        if (strcmp(SYN_VALUE(child_at(0, exp)->value)->name, TOK_ID) == 0) {
+          int idxs[] = {0, 0, -1};
+          char *varname = SYN_VALUE(navigate(idxs, exp)->value)->name;
+          size_t idx = __get_declr_index(varname, data->curfun, data->context);
+          if (idx == 0) {
+            idx = __get_par_index(varname, data->curfun, data->context);
+          }
+          printf("param $%lu\n", idx);
+          printf("param $0\n");
+          printf("call get_var, 2\n");
+          printf("pop $%lu\n", *temp);
+        }
         printf("pop $%lu // set\n", *temp + 1);
 
         printf("param %d // type\n", exp_type);
         printf("param $%lu\n", *temp);
         printf("param $%lu\n", *temp + 1);
         printf("call set_" BUILTIN_ADD ", 3\n");
-      } else {
-        printf("built-in: %s\n", fun_name);
+      } else if (strcmp(fun_name, BUILTIN_EXISTS) == 0) {
+        node_t inexp = child_at(1, node);
+        int idxs[] = {0, 0, -1};
+        char *varname = SYN_VALUE(navigate(idxs, inexp)->value)->name;
+        size_t idx = __get_declr_index(varname, data->curfun, data->context);
+        // printf("id: %s, idx: %lu\n", varname, idx);
+        depth_pos(__get_exp_code, child_at(2, inexp), value, NULL, NULL);
+        printf("pop $%lu // set\n", *temp);
+        printf("param $%lu // val\n", idx);
+        printf("param $%lu\n", *temp);
+        printf("call exists, 2\n");
+      } else if (strcmp(fun_name, BUILTIN_REMOVE) == 0) {
+        node_t inexp = child_at(1, node);
+        depth_pos(__get_exp_code, child_at(2, inexp), value, NULL, NULL);
+        depth_pos(__get_exp_code, child_at(0, inexp), value, NULL, NULL);
+        printf("pop $%lu // val\n", *temp);
+        printf("pop $%lu // set\n", *temp + 1);
+        int exp_type = eval_exp_type(child_at(0, inexp));
+        printf("param %d\n", exp_type);
+        printf("param $%lu\n", *temp);
+        printf("param $%lu\n", *temp + 1);
+        printf("call remove, 3\n");
       }
       ret_code = 1;
       break;
@@ -512,8 +800,8 @@ int __create_code(node_t node, void *value) {
 }
 
 int __get_exp_code(node_t node, void *value) {
-  t9n_data_t data = *((t9n_data_t *)value);
-  size_t *temp = data.temps->last->value;
+  t9n_data_t *data = value;
+  size_t *temp = data->temps->last->value;
   node_t op = NULL;
   if (SYN_VALUE(node->value)->type != SYN_FUN) {
     switch (node->children->size) {
@@ -539,11 +827,11 @@ int __get_exp_code(node_t node, void *value) {
         char *token = SYN_VALUE(node->parent->value)->name;
         if (strcmp(token, TOK_ID) == 0) {
           char *varname = SYN_VALUE(node->value)->name;
-          CTX_fun_t fun = CTX_FUN(lookup_symbol(data.curfun, data.context));
+          CTX_fun_t fun = CTX_FUN(lookup_symbol(data->curfun, data->context));
           CTX_sym_t sym = lookup_symbol(varname, fun->context);
-          size_t idx = __get_declr_index(varname, data.curfun, data.context);
+          size_t idx = __get_declr_index(varname, data->curfun, data->context);
           if (sym != NULL && sym->type == CTX_VAR) {
-            if (idx-- > 0) {
+            if (idx > 0) {
               printf("push $%lu // %s\n", idx, varname);
             } else {
               int idx = indexOf(sym, fun->params);
@@ -630,7 +918,7 @@ int __get_exp_code(node_t node, void *value) {
         op = navigate(idxs, node);
       }
       printf("pop $%lu\n", *temp);
-      __translate_uni_exp(op, &data);
+      __translate_uni_exp(op, data);
       printf("push $%lu\n\n", *temp);
       break;
     case 3:
@@ -646,17 +934,20 @@ int __get_exp_code(node_t node, void *value) {
         printf("pop $%lu\n", *temp);
         break;
       }
-      __translate_bin_exp(op, &data);
+      __translate_bin_exp(op, data);
       // printf("%s $0, $0, $1\n", SYN_VALUE(op->value)->name);
       if (SYN_OP(op->value)->op_type == OP_ASSIGN &&
-          strcmp(SYN_VALUE(child_at(0, node)->value)->name, TOK_ID) == 0 &&
-          strcmp(SYN_VALUE(child_at(2, node)->value)->name, TOK_EMPTY) != 0 &&
-          lookup_symbol(SYN_VALUE(child_at(0, child_at(0, node))->value)->name,
-                        data.context)
-                  ->data_type == CTX_SET) {
-        char *varname = SYN_VALUE(child_at(0, child_at(0, node))->value)->name;
-        size_t idx = __get_declr_index(varname, data.curfun, data.context);
-        printf("mov $%lu, $%lu\n", idx - 1, *temp);
+          strcmp(SYN_VALUE(child_at(0, node)->value)->name, TOK_ID) == 0) {
+        SYN_exp_t exp = child_at(0, child_at(0, node))->value;
+        char *varname = exp->name;
+        size_t idx = __get_declr_index(varname, data->curfun, data->context);
+        CTX_sym_t sym = lookup_symbol(varname, data->context);
+        if (strcmp(SYN_VALUE(child_at(2, node)->value)->name, TOK_EMPTY) != 0 &&
+            sym->data_type == CTX_SET) {
+          printf("mov $%lu, $%lu\n", idx, *temp);
+        } else if (sym->data_type == CTX_ELEM) {
+          printf("mov $%lu[2], %d\n", idx, eval_exp_type(child_at(2, node)));
+        }
       }
       printf("push $%lu\n\n", *temp);
       /* Ver o operador */
@@ -679,12 +970,24 @@ int __get_exp_code(node_t node, void *value) {
         MAP(
             if (MAP_i > 0) {
               printf("pop $%lu\n", *temp);
+              if (strcmp(SYN_VALUE(child_at(MAP_i, node->parent))->name,
+                         TOK_ID) == 0) {
+                char *argname =
+                    SYN_VALUE(child_at(0, child_at(MAP_i, node->parent))->value)
+                        ->name;
+                CTX_sym_t sym = lookup_symbol(argname, data->context);
+                if (sym != NULL) {
+                  printf("param $%lu\n", *temp);
+                  printf("param $0\n");
+                  printf("call get_var, 2\n");
+                }
+              }
               printf("param $%lu\n", *temp);
             },
             fn->children);
       }
       char suffix[512];
-      __get_fun_suffix(varname, data.context, suffix);
+      __get_fun_suffix(varname, data->context, suffix);
       printf("call %s%s", varname, suffix);
       if (argcount > 1) {
         printf(", %lu", argcount - 1);
@@ -776,7 +1079,8 @@ void __translate_bin_exp(node_t op, t9n_data_t *data) {
       // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp + 1,
       //        temp + 1);
       printf("param $%lu\n", temp + 1);
-      printf("call get_var, 1\n");
+      printf("param $0\n");
+      printf("call get_var, 2\n");
       printf("pop $%lu\n", temp + 1);
     }
     __translate_cast(child_at(2, op->parent->parent), data);
@@ -814,14 +1118,16 @@ void __translate_bin_exp(node_t op, t9n_data_t *data) {
       // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp + 1,
       //        temp + 1);
       printf("param $%lu\n", temp + 1);
-      printf("call get_var, 1\n");
+      printf("param $0\n");
+      printf("call get_var, 2\n");
       printf("pop $%lu\n", temp + 1);
     }
     __translate_cast(child_at(0, child_at(2, op->parent->parent)), data);
     if (idx1 > 0) {
       // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp, temp);
       printf("param $%lu\n", temp);
-      printf("call get_var, 1\n");
+      printf("param $0\n");
+      printf("call get_var, 2\n");
       printf("pop $%lu\n", temp);
     }
     __translate_cast(child_at(0, child_at(0, op->parent->parent)), data);
@@ -862,7 +1168,8 @@ void __translate_uni_exp(node_t op, t9n_data_t *data) {
   if (idx > 0) {
     // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp, temp);
     printf("param $%lu\n", temp);
-    printf("call get_var, 1\n");
+    printf("param $0\n");
+    printf("call get_var, 2\n");
     printf("pop $%lu\n", temp);
   }
   switch (syn->op_type) {
@@ -870,29 +1177,31 @@ void __translate_uni_exp(node_t op, t9n_data_t *data) {
   case OP_UNI_DEC:
     printf("%s $%lu, $%lu, 1\n", tac_op_string(syn->op_type), temp, temp);
     printf("param $%lu\n", temp);
-    printf("param $%lu\n", idx - 1);
+    printf("param $%lu\n", idx);
     printf("call set_var, 2\n");
-    // printf("%s $%lu[1], $%lu\n", tac_op_string(OP_ASSIGN), idx - 1, temp);
+    // printf("%s $%lu[1], $%lu\n", tac_op_string(OP_ASSIGN), idx, temp);
     break;
   // case OP_UNI_REF:
   case OP_MINUS:
     printf("minus $%lu, $%lu\n", temp, temp);
     break;
+  case OP_UNI_NEG:
   case OP_UNI_BIT_NEG:
-    printf("%s $%lu, $%lu, 1\n", tac_op_string(syn->op_type), temp, temp);
+    printf("%s $%lu, $%lu\n", tac_op_string(syn->op_type), temp, temp);
     break;
   case OP_POS_INC:
   case OP_POS_DEC:
     printf("// pos\n");
-    // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp, idx - 1);
-    printf("param $%lu\n", idx - 1);
-    printf("call get_var, 1\n");
+    // printf("%s $%lu, $%lu[1]\n", tac_op_string(OP_ASSIGN), temp, idx);
+    printf("param $%lu\n", idx);
+    printf("param $0\n");
+    printf("call get_var, 2\n");
     printf("pop $%lu\n", temp);
     printf("%s $%lu, $%lu, 1\n", tac_op_string(syn->op_type), temp + 1, temp);
     printf("param $%lu\n", temp + 1);
-    printf("param $%lu\n", idx - 1);
+    printf("param $%lu\n", idx);
     printf("call set_var, 2\n");
-    // printf("%s $%lu[1], $%lu\n", tac_op_string(OP_ASSIGN), idx - 1, temp +
+    // printf("%s $%lu[1], $%lu\n", tac_op_string(OP_ASSIGN), idx, temp +
     // 1);
     break;
   default:
@@ -912,34 +1221,49 @@ void __translate_cast(node_t node, t9n_data_t *data) {
     node = child_at(0, node);
   }
   SYN_exp_t exp = node->value;
-  if (exp->cast != CTX_INV) {
-    switch (exp->data_type) {
-    case CTX_CHAR:
-      printf("chto");
-      break;
-    case CTX_INT:
-      printf("intto");
-      break;
-    case CTX_FLOAT:
-      printf("flto");
-      break;
-    default:
-      break;
+  if (exp->data_type != CTX_ELEM) {
+    if (exp->cast != CTX_INV) {
+      switch (exp->data_type) {
+      case CTX_CHAR:
+        printf("chto");
+        break;
+      case CTX_INT:
+        printf("intto");
+        break;
+      case CTX_FLOAT:
+        printf("flto");
+        break;
+      default:
+        break;
+      }
+      switch (exp->cast) {
+      case CTX_CHAR:
+        printf("ch");
+        break;
+      case CTX_INT:
+        printf("int");
+        break;
+      case CTX_FLOAT:
+        printf("fl");
+        break;
+      default:
+        break;
+      }
+      printf(" $%lu, $%lu\n", temp + 1, temp + 1);
     }
+  } else {
+    int idx = 3;
     switch (exp->cast) {
     case CTX_CHAR:
-      printf("ch");
-      break;
+      idx--;
     case CTX_INT:
-      printf("int");
-      break;
+      idx--;
     case CTX_FLOAT:
-      printf("fl");
-      break;
+      idx--;
     default:
+      printf("mov $%lu, $%d[%d]\n", temp + 1, 0, idx);
       break;
     }
-    printf(" $%lu, $%lu\n", temp + 1, temp + 1);
   }
 }
 
@@ -971,7 +1295,24 @@ size_t __get_declr_index(char *id, char *curfun, node_t context) {
   CTX_sym_t var = lookup_symbol(id, fun->context);
   if (var != NULL && (fun->params == NULL || indexOf(var, fun->params) < 0)) {
     MAP(
-        {
+        if (fun->params == NULL || indexOf(MAP_val, fun->params) < 0) {
+          idx++;
+          if (strcmp(CTX_SYM(MAP_val)->id, id) == 0) {
+            break;
+          }
+        },
+        fun->context->value);
+  }
+  return idx;
+}
+
+size_t __get_par_index(char *id, char *curfun, node_t context) {
+  size_t idx = 0;
+  CTX_fun_t fun = CTX_FUN(lookup_symbol(curfun, context));
+  CTX_sym_t var = lookup_symbol(id, fun->context);
+  if (var != NULL && fun->params != NULL && indexOf(var, fun->params) >= 0) {
+    MAP(
+        if (fun->params != NULL && indexOf(MAP_val, fun->params) >= 0) {
           idx++;
           if (strcmp(CTX_SYM(MAP_val)->id, id) == 0) {
             break;
@@ -994,12 +1335,15 @@ int __search_fun(node_t node, void *data) {
   if (sym != NULL && strcmp(sym->id, FUN_MAIN) != 0) {
     *(*datad)++ = 'f';
     **datad = '\0';
-    int idx = indexOf(sym, node->value);
+    int idx = indexOf(sym, CTX_FUN(sym)->context->parent->value);
     sprintf(*datad, "%d", idx);
-    while (node->parent != NULL) {
-      idx = indexOf(node, node->parent->children);
+    *datad += strlen(*datad);
+    node_t aux = CTX_FUN(sym)->context->parent;
+    while (aux->parent != NULL) {
+      idx = indexOf(aux, aux->parent->children);
       sprintf(*datad, "%d", idx);
-      node = node->parent;
+      *datad += strlen(*datad);
+      aux = aux->parent;
     }
     return 1;
   }

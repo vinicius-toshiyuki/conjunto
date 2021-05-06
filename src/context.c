@@ -57,15 +57,13 @@ void init_ctx_fun(list_t params, CTX_fun_t fun) { fun->params = params; }
 
 CTX_sym_t lookup_symbol(char *id, node_t ctx) {
   CTX_sym_t sym = NULL;
-  elem_t it;
   while (sym == NULL && ctx != NULL) {
-    it = ((list_t)ctx->value)->first;
-    for (; it != NULL; it = it->next) {
-      if (strcmp(CTX_SYM(it->value)->id, id) == 0) {
-        sym = it->value;
-        break;
-      }
-    }
+    MAP(
+        if (strcmp(CTX_SYM(MAP_val)->id, id) == 0) {
+          sym = MAP_val;
+          break;
+        },
+        ctx->value);
     ctx = ctx->parent;
   }
   return sym;

@@ -1,17 +1,35 @@
-int main() {
-	// int i;
-	// for (i = 0; i < 10;) {
-	// 	write("\tValor de i: ");
-	// 	writeln(++i);
-	// }
-	// writeln(1.2 + i + 10 * -2);
-	set s1; // , s2;
-	s1 = EMPTY;
-	// s2 = s1;
-	add(2 in add(3 in add(1 in s1)));
-	writeln(1 in s1);
-	writeln(2 in s1);
-	writeln(3 in s1);
+set add_int(set s) {
+    return add(2 in add(1 in s));
+}
+set add_float(set s) {
+    return add(5.4 in add(1.5 in s));
+}
+set add_set(set s) {
+    set newset;
+    newset = EMPTY;
+    return add(add_int(newset) in s);
+}
 
-	return 0.2;
+int main() {
+    set s;
+    s = EMPTY;
+    add_set(s);
+    elem el;
+    exists(el in s);
+    add_float(s);
+    exists(el in s);
+    add_int(s);
+
+    int acc; float accf;
+    acc = 0; accf = 0;
+    elem x;
+    forall(x in s) {
+        if (!is_set(x)) {
+           acc = acc + x;
+           accf = accf + x;
+        }
+    }
+    writeln(acc);
+    writeln(accf);
+    return 0;
 }

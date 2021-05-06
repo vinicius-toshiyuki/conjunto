@@ -279,6 +279,11 @@ cmd: IF '(' exp ')' cmd %prec IF
 		}
 	| FORALL '(' exp ')' cmd
 		{
+			int exp_type = eval_exp_type($3);
+			if (exp_type != CTX_INEXP) {
+				yyerror(NULL, NULL, NULL);
+				HANDLE_ERROR("Expected in-expression in 'forall' statement");
+			}
 			$$ = create_node(create_syn_val(SYN_TAG, TOK_FORALL));
 			add_child($3, $$);
 			add_child($5, $$);
@@ -467,12 +472,10 @@ declr_fntail: parlist ')' '{'
 		} cmds '}' {
 			node_t block = parents->first->value;
 			char *fun_type = SYN_VALUE(child_at(0, child_at(0, block->parent))->value)->name;
-			char *fun_name = SYN_VALUE(child_at(0, child_at(1, block->parent))->value)->name;
-			node_t return_node = NULL;
+			int fun_type_code = data_type_code(fun_type);
 			MAP(if (strcmp(SYN_VALUE(((node_t)MAP_val)->value)->name, TOK_RETURN) == 0) {
-				return_node = MAP_val;
+				node_t return_node = MAP_val;
 				int ret_type = eval_exp_type(child_at(0, return_node));
-				int fun_type_code = data_type_code(fun_type);
 				if (!can_cast(ret_type, fun_type_code)) {
 					yyerror(NULL, NULL, NULL);
 					sprintf(
@@ -487,15 +490,38 @@ declr_fntail: parlist ')' '{'
 				}
 			}, block->children);
 			
-			if (return_node == NULL) {
-				yyerror(NULL, NULL, NULL);
-				sprintf(
-					syn_errormsg,
-					"Function \"%s\" declaration ended without a return",
-					fun_name
-					);
-				HANDLE_ERROR(syn_errormsg);
+			node_t return_node = create_node(create_syn_val(SYN_TAG, TOK_RETURN));
+			node_t return_exp = NULL;
+			node_t return_val = NULL;
+			switch (fun_type_code) {
+			case CTX_CHAR:
+				return_exp = create_node(create_syn_val(SYN_TAG, TOK_CHAR));
+				return_val = create_node(create_syn_val(SYN_EXP, strdup("'\\0'")));
+				init_syn_exp(CTX_CHAR, 0, return_val->value);
+				break;
+			case CTX_ELEM:
+			case CTX_INT:
+				return_exp = create_node(create_syn_val(SYN_TAG, TOK_INT));
+				return_val = create_node(create_syn_val(SYN_EXP, strdup("0")));
+				init_syn_exp(CTX_INT, 0, return_val->value);
+				break;
+			case CTX_FLOAT:
+				return_exp = create_node(create_syn_val(SYN_TAG, TOK_FLOAT));
+				return_val = create_node(create_syn_val(SYN_EXP, strdup("0.0")));
+				init_syn_exp(CTX_FLOAT, 0, return_val->value);
+				break;
+			case CTX_SET:
+				return_exp = create_node(create_syn_val(SYN_TAG, TOK_EMPTY));
+				return_val = create_node(create_syn_val(SYN_EXP, strdup(CONST_EMPTY)));
+				init_syn_exp(CTX_SET, 0, return_val->value);
+				break;
+			default:
+				break;
 			}
+			add_child(return_val, return_exp);
+			add_child(return_exp, return_node);
+			add_child(return_node, block);
+
 			removeAt(0, parents);
 		}
 	/* Erros */
@@ -692,7 +718,6 @@ exp: INT     { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_INT))
 	| CHAR   { add_child($1, ($$ = create_node(create_syn_val(SYN_TAG, TOK_CHAR))));   }
 	| EMPTY
 		{
-			
 			SYN_tag_t tag = SYN_TAG(create_syn_val(SYN_TAG, TOK_EMPTY));
 			SYN_exp_t exp = SYN_EXP(create_syn_val(SYN_EXP, strdup(CONST_EMPTY)));
 			init_syn_exp(CTX_SET, 0, exp);
@@ -952,6 +977,12 @@ fntail: '(' arglist ')'
 								data_type_string(CTX_ELEM)
 								);
 							HANDLE_ERROR(syn_errormsg);
+						}
+					} else if (strcmp(fn_name, BUILTIN_ADD) == 0) {
+						node_t arg = child_at(fn_syn->children->size - 1, fn_syn);
+						if (eval_exp_type(arg) != CTX_INEXP) {
+							yyerror(NULL, NULL, NULL);
+							HANDLE_ERROR("Expected an in-expression in \""BUILTIN_ADD"\" call");
 						}
 					}
 					iter_t it_pars = ITERATOR(CTX_FUN(fn_sym)->params, ITER_DOWN);

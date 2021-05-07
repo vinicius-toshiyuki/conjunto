@@ -167,6 +167,7 @@ int got_error = 0;
 #include <eval.h>
 #include <set.h>
 #include <translation.h>
+#include <builtin.h>
 }
 
 // %define api.value.type { node_t }
@@ -489,7 +490,7 @@ declr_fntail: parlist ')' '{'
 					cast_to(fun_type_code, return_node);
 				}
 			}, block->children);
-			
+
 			node_t return_node = create_node(create_syn_val(SYN_TAG, TOK_RETURN));
 			node_t return_exp = NULL;
 			node_t return_val = NULL;
@@ -631,7 +632,7 @@ partail: %empty
 		}
 	;
 
-forargs: 
+forargs:
 	// TYPE ID '=' exp
 	// 	{
 	// 		node_t arg = create_node(create_syn_val(SYN_TAG, TOK_EXP));
@@ -993,8 +994,8 @@ fntail: '(' arglist ')'
 						int arg_type = eval_exp_type(ITER(it_args, node_t, NULL));
 
 						/** Checa se a in-expression de exists() tem uma variável
-						  * na esquerda
-						  */
+						* na esquerda
+						*/
 						if (strcmp(fn_name, BUILTIN_EXISTS) == 0 &&
 							arg_type == CTX_INEXP &&
 							strcmp(

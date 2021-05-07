@@ -53,8 +53,9 @@ extern int yydebug;
 #include <eval.h>
 #include <set.h>
 #include <translation.h>
+#include <builtin.h>
 
-#line 58 "sintatico.h"
+#line 59 "sintatico.h"
 
 /* Token kinds.  */
 #ifndef YYTOKENTYPE
@@ -130,11 +131,11 @@ extern int yydebug;
 #if ! defined YYSTYPE && ! defined YYSTYPE_IS_DECLARED
 union YYSTYPE
 {
-#line 173 "sintatico.y"
+#line 174 "sintatico.y"
 
 	node_t node;
 
-#line 138 "sintatico.h"
+#line 139 "sintatico.h"
 
 };
 typedef union YYSTYPE YYSTYPE;

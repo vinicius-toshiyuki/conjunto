@@ -1,35 +1,28 @@
-set add_int(set s) {
-    return add(2 in add(1 in s));
-}
-set add_float(set s) {
-    return add(5.4 in add(1.5 in s));
-}
-set add_set(set s) {
-    set newset;
-    newset = EMPTY;
-    return add(add_int(newset) in s);
-}
-
-int main() {
-    set s;
-    s = EMPTY;
-    add_set(s);
-    elem el;
-    exists(el in s);
-    add_float(s);
-    exists(el in s);
-    add_int(s);
-
-    int acc; float accf;
-    acc = 0; accf = 0;
-    elem x;
-    forall(x in s) {
-        if (!is_set(x)) {
-           acc = acc + x;
-           accf = accf + x;
-        }
+set subsum(set s, int target, int cur_sum, set ans) {
+    if(target == cur_sum) return ans;
+    else if (s == EMPTY) return EMPTY;
+    else {
+       int el;
+	   // writeln(exists (el in s));
+       remove((exists (el in s)) in s);
+       // if(subsum(s, target, cur_sum, ans)) return ans;
+       // cur_sum = cur_sum + el;
+       // add(el in ans);
+       // if(subsum(s, target, cur_sum, ans)) return ans;
+       // add(el in s);
+       // remove (el in s);
+       return EMPTY;
     }
-    writeln(acc);
-    writeln(accf);
-    return 0;
+}
+int main() {
+    set s, ans;
+    s = EMPTY;
+	ans = EMPTY;
+    add(1 in s);
+    add(2 in s);
+    add(5 in s);
+    add(8 in s);
+	writeln(s);
+	subsum(s, 3, 0, ans);
+	writeln("--fim--");
 }
